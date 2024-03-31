@@ -1,10 +1,28 @@
 [package]
 name = "rust-zero2prod"
 version = "0.1.0"
+authors = ["Kevin Sullivan <kevin.sullivan@fake.email"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[lib]
+# We can use any path here, but follow community convention
+# Can specify a library name using 'name' field.
+# If unspecified, defaults to 'package.name', which we want
+path = "src/lib.rs"
+name = "zero2prod"
+
+# [[Double Square Brackets]] = Array in TOML
+# You only get on library per project, but multiple binaries you desired
+# Let's you manage multiple libraries in same repo
+[[bin]]
+path = "src/main.rs"
+name = "zero2prod"
+
 [dependencies]
 actix-web = "4.5.1"
 tokio = { version = "1.37.0", features = ["macros", "rt-multi-thread"] }
+
+[dev-dependencies]
+reqwest = "0.12.2"

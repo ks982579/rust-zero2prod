@@ -53,4 +53,85 @@ So do not put into production without critical features such as that.
 
 ### Signing up
 
+Starting our first server and we use the `HttpServer` struct that handles all _transport level_ concerns. 
+Then, the `App` handles the application logic, routing, middlewares, request handlers, etc...
+You can checkout [Actix-Web | docs.rs/actix-web](https://docs.rs/actix-web/4.0.1/actix_web/web/fn.get.html) docs.
+For context, the `App::new().route(self, path: &str, route: Route) -> Self`. 
+This means that `web` is a module, and `web::get() -> Route` is a function in that module that returns a `Route`. 
 
+Opened a can of worms here...
+[Route | docs.rs](https://docs.rs/actix-web/4.0.1/actix_web/struct.Route.html) has many methods.
+We merely use the `.to<F, Args>(self, handler: F) -> Self` method to call a handler function.
+The `Args` parameter is passed into the handler, which should be like a function type, but is `F: Handler<Args>` in the docs.
+
+There's another concept of **Guards**, which specify a condition to be met before passing over to handler.
+So a bit like middleware. 
+How is this relevant?
+The `web::get()` is short for `Route::new().guard(guard::Get())`.
+In the docs, you can see (sort of) the macro call to create this.
+This essentially says pass the request to the handler iff it is an HTTP GET method. 
+
+Before I change everything to be more realistic with the health check, this is the ground work:
+
+```rust
+use actix_web::{web, App, HttpRequest, HttpServer, Responder};
+
+/// A type implements the `Responder` trait if it can be converted into `HttpResponse` type.
+async fn greet(req: HttpRequest) -> impl Responder {
+    // match_info works with dynamic path segments.
+    let name = req.match_info().get("name").unwrap_or("World");
+    format!("Hello {}!", name)
+}
+
+#[tokio::main]
+async fn main() -> Result<(), std::io::Error> {
+    // HttpServer for binding to TCP socket, maximum number of connections
+    // allowing transport layer security, and more.
+    HttpServer::new(|| {
+        App::new()
+            .route("/", web::get().to(greet))
+            .route("/{name}", web::get().to(greet))
+    })
+    .bind("127.0.0.1:8000")?
+    .run()
+    .await
+}
+```
+
+With the health check endpoint, test with `curl -v localhost:8000/health-check` or whatever works best for you.
+
+#### Testing Endpoints
+
+We don't want to accidently break APIs when we refactor or add features.
+Black Box testing validates the behaviour of a system by giving it inputs and examining the outputs.
+It does not analyze any of the internal logic.
+Could be the worst code, but the test will pass if the output is correct.
+
+We cannot just call the function of the endpoint directly, especially if it takes an HTTP Request argument.
+Else, we would have to build the request first.
+That would be a unit test though.
+It doesn't check that it is invoked with a GET request, or that the endpoint/URL is correct.
+
+What do we want with our integration tests?
++ Highly decoupled from technology underpinning API implementation (in case we change frameworks)
++ We want to test on our server... but cannot write a function that returns `App` due to technical limitations
+
+We want to throw integration tests into a separate directory, but that requires some setup.
+Fix the `Cargo.toml` file. Note TOML syntax. 
+Specifying the bin of 'src/main.rs' isn't completely necessary,
+but spells everything out to provide a complete picture in the configuration.
+
+The book didn't have the library name specified...
+But I named my project "rust-zero2prod", so it wasn't coming in _automagically_.
+
+Out tests require `reqwest`, a higher-level HTTP client. 
+Add with `cargo add --dev reqwest` to list as "dev-dependencies".
+This means it will not complie with final application binary.
+
+The tests is nicely decoupled by we need to _spawn_ the app.
+We cannot simply call the `run()` method because...
+Basically that method is an infinite loop, always listening for requests.
+As such, it doesn't return anything and therefore, the tests cannot progress.
+This means we need to rework our `run()` method!
+
+p. 34;
