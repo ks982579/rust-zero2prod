@@ -61,3 +61,37 @@ async fn subscribe_returns_200_for_valid_form_data() {
     // Assert
     assert_eq!(200, response.status().as_u16());
 }
+
+/// You need good error messages with parameterised tests to know where assertion failed.
+#[tokio::test]
+async fn subscribe_returns_400_when_data_is_missing() {
+    // Arrange
+    let app_address: String = spawn_app();
+    let client: reqwest::Client = reqwest::Client::new();
+    // Table-Driven test aka Parameterised test
+    let test_cases: Vec<(&str, &str)> = vec![
+        ("name=le%20guin", "Missing the email"),
+        ("email=ursula_le_guin%40gmail.com", "Missing the name."),
+        ("", "Missing both name and email."),
+    ];
+
+    for (invalid_body, error_message) in test_cases {
+        // Act
+        let response = client
+            .post(&format!("{}/subscriptions", &app_address))
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .body(invalid_body)
+            .send()
+            .await
+            .expect("Failed to execute request.");
+
+        // Assert
+        assert_eq!(
+            400,
+            response.status().as_u16(),
+            // additional customised error message
+            "The API did not fail with 400 Bad Request when the payload was {}.",
+            error_message
+        );
+    }
+}
