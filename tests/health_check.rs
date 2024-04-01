@@ -1,4 +1,5 @@
 use std::net::TcpListener;
+use zero2prod::startup::run;
 
 /**
 * `tokio::test` is like `tokio::main`
@@ -14,7 +15,7 @@ fn spawn_app() -> String {
         TcpListener::bind("127.0.0.1:0").expect("Failed to bind to random port.");
     // Retrieve the port assigned by the OS
     let port: u16 = listener.local_addr().unwrap().port();
-    let server = zero2prod::run(listener).expect("Failed to bind address");
+    let server = run(listener).expect("Failed to bind address");
     let _ = tokio::spawn(server);
     // Return the String of the whole address.
     format!("http://127.0.0.1:{}", port)

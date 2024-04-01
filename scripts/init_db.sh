@@ -22,15 +22,19 @@ DB_NAME="${POSTGRES_DB:=newsletter}"
 DB_PORT="${POSTGRES_PORT:=5432}"
 DB_HOST="${POSTGRES_HOST:=localhost}"
 
-# Launch postgres using Docker
-docker run \
-  -e POSTGRES_USER=${DB_USER} \
-  -e POSTGRES_PASSWORD=${DB_PASSWORD} \
-  -e POSTGRES_DB=${DB_NAME} \
-  -p "${DB_PORT}":5432 \
-  -d postgres \
-  postgres -N 1000
-  # ^ Increase max number of connections for testing purposes
+# Allow to skip Docker if dockerized database already running
+if [[ -z "${SKIP_DOCKER}" ]]
+then
+  # Launch postgres using Docker
+  docker run \
+    -e POSTGRES_USER=${DB_USER} \
+    -e POSTGRES_PASSWORD=${DB_PASSWORD} \
+    -e POSTGRES_DB=${DB_NAME} \
+    -p "${DB_PORT}":5432 \
+    -d postgres \
+    postgres -N 1000
+    # ^ Increase max number of connections for testing purposes
+fi
 
 # Do not proceed until database is up (Race Conditions)
 # Ping Postgress untils it is ready to accept commands
@@ -46,3 +50,6 @@ DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAM
 export DATABASE_URL
 # SQLX relies on this `DATABASE_URL` env variable.
 sqlx database create
+sqlx migrate run
+
+>&2 echo "Postgres has been migrated, ready to go!"

@@ -246,3 +246,12 @@ In our case, you create the `subscriptions` table.
 
 The author discusses how using SQL constraints can impact write throughput, but not something we probably need to consider here.
 Run migrations with `sqlx migrate run`.
+
+If database is already running, skip docker command with:
+
+```bash
+SKIP_DOCKER=true ./scripts/init_db.sh
+```
+
+sqlx keeps track of its migrations in a `_sqlx_migrations` table... so that name is already taken.
+Now, add sqlx as a dependency.
