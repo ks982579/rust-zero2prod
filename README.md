@@ -178,3 +178,14 @@ I think it's worth reviewing the tutorial section at least.
 
 We also don't like hardcoding in the binding address, what if that socket is taken?
 We cannot run tests in parallel if we only use the one socket...
+I wasn't aware, but binding to port 0 tells the OS to find an available port for the program.
+This means we need to store that information to pass around the tests though.
+
+#### HTML Forms
+
+We consider many things, namely what information we receive and how to receive it.
+You can accept the "Content-Type: application/x-www-form-urlencoded".
+I would rather use JSON... but the book goes in this direction. 
+It uses percent encoding where `%20` is a space and `%40` is the at symbol.
+If the information is provided, great; else, return 400 status.
+Build up the test first.
