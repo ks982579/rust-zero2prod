@@ -189,3 +189,31 @@ I would rather use JSON... but the book goes in this direction.
 It uses percent encoding where `%20` is a space and `%40` is the at symbol.
 If the information is provided, great; else, return 400 status.
 Build up the test first.
+
+Once tests are done we start easy, just always returning status 200:
+
+```rust
+// #! src/lib.rs
+async fn subscribe() -> HttpResponse {
+    HttpResponse::Ok().finish()
+}
+```
+
+Add the route to the router!
+Actix-Web comes with some _extractors_, [`actix_web::web::Form`](https://docs.rs/actix-web/4.0.1/actix_web/web/struct.Form.html) is one.
+It looks like you need a struct that can derive **Deserialize**, and then pass the form into your endpoint.
+However, we must add `serde` now to our code.
+
+The book then goes into a [Serde | serde.rs](https://serde.rs/) deep-dive to understand how the conversion works.
+Or [Serde | docs.rs](https://docs.rs/serde/latest/serde/index.html).
+Or the more specific [`serde_urlencoded` | docs.rs](https://docs.rs/serde_urlencoded/latest/serde_urlencoded/index.html).
+Serde itself defines a set of interfaces for (de)serialisation from/to data formats.
+Serde is agnostic with respect to data formats.
+Once your type (struct) implements `Serialize`, you can use any _concrete_ implementation of it.
+And most, if not all, commonly used data formats can be found on crates.io.
+
+It is fast thanks to a process called _monomorphization_. 
+It (compiler) makes copies of the generic function with concrete types.
+This is also called zero-cost abstraction. 
+Further, other languages leverage "runtime reflection" to fetch information about types to (de)serialize.
+Rust requires everything up front and does not provide runtime reflection.
