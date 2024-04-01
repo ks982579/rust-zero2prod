@@ -217,3 +217,32 @@ It (compiler) makes copies of the generic function with concrete types.
 This is also called zero-cost abstraction. 
 Further, other languages leverage "runtime reflection" to fetch information about types to (de)serialize.
 Rust requires everything up front and does not provide runtime reflection.
+
+#### Database Support
+
+Our test only checks if 200 is returned.
+We want to confirm the _side-effect_ of user data being stored.
+We need a database to store that data, and so setup a PostgreSQL database with docker for yourself.
+
+The book covers a nice script to invoke Docker to create a database for us.
+Use it running `./scripts/init_db.sh`.
+Check with `docker ps`.
+I love when things just work :)
+
+Probably should have given it a tag / name, but I'll live with "dazzling_gould" for now.
+
+Using `sqlx-cli` requires installing its CLI to manage database migrations.
+And we added a lot of additional things such as checks for tools and race conditions to the script.
+
+```bash
+>> export DATABASE_URL=postgres://postgres:password@127.0.0.1:5432/newsletter
+>> sqlx migrate add create_subscriptions_table
+```
+
+You should get a "migrations" directory now.
+Unfortunately, it looks like it only creates an empty file.
+It is up to you to add the SQL to update the database!
+In our case, you create the `subscriptions` table.
+
+The author discusses how using SQL constraints can impact write throughput, but not something we probably need to consider here.
+Run migrations with `sqlx migrate run`.
