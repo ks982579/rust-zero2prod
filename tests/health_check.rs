@@ -6,14 +6,18 @@
 
 // Launch application somehow in background
 // This is only piece coupled with our application.
-async fn spawn_app() -> Result<(), std::io::Error> {
-    todo!();
+// Remove the `async` here as well...
+fn spawn_app() -> () {
+    let server = zero2prod::run().expect("Failed to bind address");
+    let _ = tokio::spawn(server);
 }
 
 #[tokio::test]
 async fn health_check_success() {
     // Arrange
-    spawn_app().await.expect("Failed to spawn app.");
+    // No .await or .expect required now...
+    //spawn_app().await.expect("Failed to spawn app.");
+    spawn_app();
     // bring in `reqwest` to send HTTP requests against application.
     let client = reqwest::Client::new();
 

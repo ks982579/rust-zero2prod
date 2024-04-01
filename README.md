@@ -100,6 +100,21 @@ async fn main() -> Result<(), std::io::Error> {
 
 With the health check endpoint, test with `curl -v localhost:8000/health-check` or whatever works best for you.
 
+Now, we created the "health-check" endpoint that returns something which implements the `Responder` trait.
+It's worth noting the intention of said trait [Responder](https://docs.rs/actix-web/4.0.1/actix_web/trait.Responder.html),
+has a method called `respond_to`, which returns an `HttpResponse`. 
+So we can cut out the middleman and just return the `HttpResponse`...
+
+```rust
+/// We don't have to pass in `_req` surprisingly.
+async fn health_check(_req: HttpRequest) -> HttpResponse {
+    // HttpResponse is OK because Responder converts to it anyway
+    // HttpResponse::Ok gives us a builder with default 200 status code
+    // You could use `.finish()` to build, but the builder itself implements the Responder trait
+    HttpResponse::Ok().finish()
+}
+```
+
 #### Testing Endpoints
 
 We don't want to accidently break APIs when we refactor or add features.
@@ -128,10 +143,38 @@ Out tests require `reqwest`, a higher-level HTTP client.
 Add with `cargo add --dev reqwest` to list as "dev-dependencies".
 This means it will not complie with final application binary.
 
-The tests is nicely decoupled by we need to _spawn_ the app.
+The test is nicely decoupled but we need to _spawn_ the app.
 We cannot simply call the `run()` method because...
 Basically that method is an infinite loop, always listening for requests.
 As such, it doesn't return anything and therefore, the tests cannot progress.
 This means we need to rework our `run()` method!
 
-p. 34;
+We remove the `async` characteristic of the function and merely return a Result holding the server.
+The main function can unwrap the result, or error (with the `?`), and await the server.
+
+I am trying to run tests and something isn't working correctly.
+The terminal is yelling at me to `sudo apt install pkg-config`... So OK...
+That lead to me not having OpenSSL installed on my Ubuntu distro.
+Simply...
+
+```bash
+sudo apt-get install libssl-dev
+```
+
+Or search, in your preferred search engine, how to install OpenSSL on your OS.
+
+Wow, so the server looks like this:
+
+```rust
+fn spawn_app() -> () {
+    let server = zero2prod::run().expect("Failed to bind address");
+    let _ = tokio::spawn(server);
+}
+```
+
+I was looking at the [Tokio Documentation | tokio.rs](https://tokio.rs/tokio/tutorial/spawning), which is handy.
+But hard to get through, quite technical.
+I think it's worth reviewing the tutorial section at least.
+
+We also don't like hardcoding in the binding address, what if that socket is taken?
+We cannot run tests in parallel if we only use the one socket...
