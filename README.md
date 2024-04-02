@@ -326,3 +326,5 @@ But `PgConnection` doesn't implement `Clone` because it sits on a non-cloneable 
 
 The `web::Data` is an Actix-Web extractor that wraps the connection in an Atomic Reference Counted pointer (Arc).
 
+So, we wrap the connection and stuff into the `.app_data(thing.clone())` method with a clone.
+Then, we make the actual connection in the `main()` function to pass into `run()` function.
