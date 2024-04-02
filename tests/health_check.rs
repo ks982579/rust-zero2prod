@@ -56,7 +56,7 @@ async fn subscribe_returns_200_for_valid_form_data() {
     // Note: `Connection` trait must be in scope to invoke
     // `PgConnection::connect` - it is not an inherent method of the struct!
     // Also, the return type of `.connect()` is wild...
-    let connection: PgConnection = PgConnection::connect(&connection_string)
+    let mut connection: PgConnection = PgConnection::connect(&connection_string)
         .await
         .expect("Failed to connect to Postgres");
     let client: reqwest::Client = reqwest::Client::new();
@@ -73,6 +73,18 @@ async fn subscribe_returns_200_for_valid_form_data() {
 
     // Assert
     assert_eq!(200, response.status().as_u16());
+
+    // We add now the response!
+    // The query! macro verifies the returned struct is valid at run time.
+    // it returns an anonymous record type and needs the DATABASE_URL \
+    // to verify with, which must be supplied in the `.env` file.
+    let saved = sqlx::query!("SELECT email, name FROM subscriptions",)
+        .fetch_one(&mut connection)
+        .await
+        .expect("Failed to fetch saved subscription.");
+
+    assert_eq!(saved.email, "ursula_le_guin@gmail.com");
+    assert_eq!(saved.name, "le guin");
 }
 
 /// You need good error messages with parameterised tests to know where assertion failed.

@@ -308,5 +308,9 @@ async fn subscribe_returns_200_for_valid_form_data() {
 I try to add the types manually so I know what they are and can refer back.
 If you have a better memory or an more proficient than I, you may leave them off and the compiler will figure it out... mostly.
 
-p. 68 - 3.8.5.4
 
+The `query!` macro verifies the returned struct is valid at run time.
+It returns an anonymous record type and needs the DATABASE_URL
+to verify with, which must be supplied in the `.env` file.
+Some how that query reads the `.env` file and finds what it is looking for. 
+It's that or we re-export the environment variable every time...
