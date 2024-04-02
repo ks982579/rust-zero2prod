@@ -266,4 +266,47 @@ They also disable default features... Live life on the edge.
 For the `configuration.rs` file, I think the book refers to using the [Config Crate | crates.io](https://crates.io/crates/config).
 You can add with `cargo add config`, and it has many feature flags too.
 
+With the new configuration, check to see that the test (currently) forms a connection to the database.
+
+```rust
+use reqwest::Response;
+use sqlx::{Connection, PgConnection};
+use std::net::TcpListener;
+use zero2prod::configuration::{get_configuration, Settings};
+use zero2prod::startup::run;
+// {...}
+#[tokio::test]
+async fn subscribe_returns_200_for_valid_form_data() {
+    // Arrange
+    let app_address: String = spawn_app();
+    // We want to connect to the database also
+    let configuration: Settings = get_configuration().expect("Failed to read configuration.");
+    let connection_string: String = configuration.database.connection_string();
+    // Note: `Connection` trait must be in scope to invoke
+    // `PgConnection::connect` - it is not an inherent method of the struct!
+    // Also, the return type of `.connect()` is wild...
+    let connection: PgConnection = PgConnection::connect(&connection_string)
+        .await
+        .expect("Failed to connect to Postgres");
+    let client: reqwest::Client = reqwest::Client::new();
+
+    // Act
+    let body: &str = "name=le%20guin&email=ursula_le_guin%40gmail.com";
+    let response: Response = client
+        .post(&format!("{}/subscriptions", &app_address))
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .body(body)
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+    // Assert
+    assert_eq!(200, response.status().as_u16());
+}
+```
+
+I try to add the types manually so I know what they are and can refer back.
+If you have a better memory or an more proficient than I, you may leave them off and the compiler will figure it out... mostly.
+
+p. 68 - 3.8.5.4
 
