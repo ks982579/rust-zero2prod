@@ -255,3 +255,15 @@ SKIP_DOCKER=true ./scripts/init_db.sh
 
 sqlx keeps track of its migrations in a `_sqlx_migrations` table... so that name is already taken.
 Now, add sqlx as a dependency.
+
+```bash
+cargo add sqlx --features runtime-tokio-rustls,macros,postgres,uuid,chrono,migrate
+```
+
+The book suggests adding `[dependencies.sqlx]` section to avoid a long line it the `Cargo.toml` file.
+They also disable default features... Live life on the edge.
+
+For the `configuration.rs` file, I think the book refers to using the [Config Crate | crates.io](https://crates.io/crates/config).
+You can add with `cargo add config`, and it has many feature flags too.
+
+

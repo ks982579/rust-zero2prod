@@ -1,4 +1,7 @@
+use reqwest::Response;
+use sqlx::{Connection, PgConnection};
 use std::net::TcpListener;
+use zero2prod::configuration::{get_configuration, Settings};
 use zero2prod::startup::run;
 
 /**
@@ -47,11 +50,20 @@ async fn health_check_success() {
 async fn subscribe_returns_200_for_valid_form_data() {
     // Arrange
     let app_address: String = spawn_app();
+    // We want to connect to the database also
+    let configuration: Settings = get_configuration().expect("Failed to read configuration.");
+    let connection_string: String = configuration.database.connection_string();
+    // Note: `Connection` trait must be in scope to invoke
+    // `PgConnection::connect` - it is not an inherent method of the struct!
+    // Also, the return type of `.connect()` is wild...
+    let connection: PgConnection = PgConnection::connect(&connection_string)
+        .await
+        .expect("Failed to connect to Postgres");
     let client: reqwest::Client = reqwest::Client::new();
 
     // Act
     let body: &str = "name=le%20guin&email=ursula_le_guin%40gmail.com";
-    let response = client
+    let response: Response = client
         .post(&format!("{}/subscriptions", &app_address))
         .header("Content-Type", "application/x-www-form-urlencoded")
         .body(body)
