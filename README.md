@@ -314,3 +314,15 @@ It returns an anonymous record type and needs the DATABASE_URL
 to verify with, which must be supplied in the `.env` file.
 Some how that query reads the `.env` file and finds what it is looking for. 
 It's that or we re-export the environment variable every time...
+
+Actix-Web gives us ability to pass other pieces of data around, not related to the lifecycle of a single
+incoming request, called the _application state_.
+Do this by adding your _thing_ in the `App::new().app_data(thing)` method!
+
+The `HttpServer` returns worker processes for each available core on the machine.
+Each runs its own copy of application built by this by calling the same closure. 
+So, we need **the same connection** for each copy of App.
+But `PgConnection` doesn't implement `Clone` because it sits on a non-cloneable system, TCP connection with Postgres.
+
+The `web::Data` is an Actix-Web extractor that wraps the connection in an Atomic Reference Counted pointer (Arc).
+
