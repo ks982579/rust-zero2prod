@@ -328,3 +328,39 @@ The `web::Data` is an Actix-Web extractor that wraps the connection in an Atomic
 
 So, we wrap the connection and stuff into the `.app_data(thing.clone())` method with a clone.
 Then, we make the actual connection in the `main()` function to pass into `run()` function.
+
+In the `subscribe` function, we bring in a new `_connection: web::Data<PgConnection>` parameter.
+Actix-web uses a _type-map_ to represent its application state.
+This is a `HashMap` that stores arbitrary data (with `Any` type) against its unique type identifier (obtained via `TypeId::of`).
+Other languages mightt call this "dependency injection".
+Interesting to have it done in Rust.
+
+Passing information to the database requires some additional imports.
+
+```
+cargo add uuid --features v4
+cargo add chrono --no-default-features --features clock
+```
+
+Setting up the `subscribe` API with a `query!` to the database still gives and error.
+More specifically, the `.execute(connection.get_ref().deref())` does not implement `sqlx_core::executor:Executor<'_>`.
+Only the `&mut PgConnection` implements that trait because sqlx has an asynchronous interface. 
+However, you cannot run multiple queries _concurrently_ over the same dabase connection.
+Think of a mutable reference as a unique reference.
+It guarantees to `execute` that they have exclusive access the PgConnection because Rust rules only allows one mutuable reference at a time. 
+
+The problem, `web::Data` will not give us mutuable access to application state. 
+Using a lock (Mutex) would allow for synchronise access to underlying TCP socket, leveraging interior mutability.
+But not a great solution.
+
+Instead of `PgConnection`, `PgPool` is a pool of connections to a Postgres database. 
+It implements the `Executor` trait, and uses a kind of interior mutability.
+When you run a query with `&PgPool`, sqlx borrows a PgConnection from the pool to execute the query,
+or wait for one to free up,
+or create a new one!
+This increases number of concurrent queries our application can run, improving resiliency. 
+A slow query will not impact the performance of all incoming requests by locking the connection.
+
+We must begin our update in `main.rs`.
+Then, we update the `run()` function in `startup.rs`.
+Then the endpoint for subscriptions.
