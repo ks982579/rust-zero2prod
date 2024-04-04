@@ -1,12 +1,16 @@
 use std::net::TcpListener;
 
+use env_logger::Env;
 // use sqlx::{Connection, PgConnection};
 use sqlx::PgPool;
+
 use zero2prod::configuration::{get_configuration, Settings};
 use zero2prod::startup::run;
 
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
+    // `init` calles `set_logger` for us, and we default to "info".
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     // Panic if we can't read configuration!
     let configuration: Settings = get_configuration().expect("Failed to read configuration.");
     // // Connect to Database in Main Function!

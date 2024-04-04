@@ -408,4 +408,87 @@ This database is only for testing after all.
 
 ## Telemetry
 
+p. 89
+
+Don't deploy the app just yet, we don't know what we don't know.
+There are too many "unknown unknowns".
+That's why we need to collect telemetry data.
+
+Things to consider:
++ What happens if we lose database connection? Will it try to reconnect or is that it?
++ What happens if an attacker tries passing malicious payloads into POST body? 
+
+Those are actually **known unknowns**, we are aware but they are unmanaged. 
+Unknown unknowns can happen when:
++ system pushed beyond usual operating conditions.
++ multiple components failures at same time.
++ No changes introduced for long time (system not restarted for while and memory leaks emerge).
+
+They are similar in that they are nearly impossible to reporduce outside live environments.
+And we cannot attach a debugger to a process in production.
+**Telemetry Data** is information about the running application that is collected automatically,
+which can be reviewed later.
+
+Goal: Have an **Observable Application**.
+
+For this we need to collect _high-quality_ telemetry data.
+
+### Logging
+
+Logs are the most common type of telemetry data. 
+Rust has a [log | crates.io](https://crates.io/crates/log) crate.
+It has 5 macros, each emitting a log at a different level:
++ error = used if an operation fails (user impact).
++ warn
++ info = used to record success of operation.
++ debug
++ trace = verbose and used to record things like when TCP packet is received.
+
+But wait, Actix-Web provides a logger middleware?
+We add to `startup.rs`.
+
+```rust
+// {...}
+    let server: Server = HttpServer::new(move || {
+        App::new()
+            .wrap(Logger::default())
+            .route("/health-check", web::get().to(health_check))
+// {...}
+```
+
+Middleware is added with the `.wrap()` method. 
+But, what happens to the logs when they are generated?
+If you start the application, still nothing in the consolse...
+
+The book goes into the "Facade Pattern", 
+a structural design pattern.
+I have the book, "Design Patterns", but there's also [Refactoring.guru](https://refactoring.guru/design-patterns).
+This pattern provides an interface to a library to simplify working with it. 
+
+The `log` crate leverages the facad pattern.
+Basically, you have the tools and you get to decide how logs are displayed.
+There's a `set_logger` function we can call in `main()`.
+If we don't, logs are basically just discarded.
+
+There are many Log implementations, listed in the docs of `log`.
+We will use... `env_logger`, nice to print log records to the terminal.
+
+```bash
+cargo add env_logger
+```
+
+It should print logs in the following format to terminal:
+
+```bash
+[<timestamp> <level> <module path>] <log message>
+```
+
+So, you pass in something like `RUST_LOG=debug cargo run` so it can know what to print out. 
+Sending `RUST_LOG=zero2prod` would filter out dependencies.
+Update your main function!
+
+We default setting to "info", but go ahead with `RUST_LOG=trace` to see some lower level events being logged.
+
+Now, import the `log` dependency with `cargo add log`.
+A rule of thumb, "any interaction with external systems over the network should be closely monitored."
 

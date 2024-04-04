@@ -1,4 +1,4 @@
-use actix_web::{dev::Server, web, App, HttpServer};
+use actix_web::{dev::Server, middleware::Logger, web, App, HttpServer};
 // use sqlx::PgConnection;
 use sqlx::PgPool;
 use std::net::TcpListener;
@@ -15,6 +15,8 @@ pub fn run(listener: TcpListener, db_pool: PgPool) -> Result<Server, std::io::Er
     // allowing transport layer security, and more.
     let server: Server = HttpServer::new(move || {
         App::new()
+            // middleware added with the `.wrap()` method.
+            .wrap(Logger::default())
             .route("/health-check", web::get().to(health_check))
             .route("/subscriptions", web::post().to(subscribe))
             // Register connection as part of application state
