@@ -364,3 +364,48 @@ A slow query will not impact the performance of all incoming requests by locking
 We must begin our update in `main.rs`.
 Then, we update the `run()` function in `startup.rs`.
 Then the endpoint for subscriptions.
+
+The `health_check.rs` tests also need to be updated. 
+I guess the idea is to create a new stuct to hold necessary information and pass around.
+We will call it `TestApp`.
+
+The book leaves updating the tests to the reader.
+When using the test pool, it's interesting to know that the `query!().fetch_one(&pool: &PgPool)`
+requires something with the `Executor<'_>` trait.
+Luckily, the compiler was helpful enough to suggest that "`Executor<'p>` is implemented for `&Pool<DB>`"
+when I tried to pass in a clone.
+
+The test _intent_ is clear now,
+and we removed most biolerplate of establishing the DB connection (in the test itself).
+I can happily report that my tests also passed.
+But they will only pass once because the data persists in the database. 
+And one of the constraints on the data is a unique field.
+
+There are 2 ways to handle:
+1. Wrap each tests in an SQL transaction and rollback at end of test.
+2. spin up new database for each integration test.
+
+The former would be much faster but for our integration tests,
+unsure how to _capture_ the connection in the SQL transaction context.
+The latter is slower but will be easier to implement. 
+This means creating a new logical database with a unique name and running migrations on it.
+To do this, we randomize the database name with UUID.
+But then we need to not pass that into the connection, so we create a new method in configurations.
+This will connect to the Postgres instance and not a specific database.
+
+Then we create a new function in our test to connect to the database and run migrations...
+Word of caution, you must `use sqlx::{Executor}` to execute the "CREATE DATABASE" command.
+Interesting that we create the database with the `PgConnection` struct,
+then migrate and return a `PgPool`.
+The tests now run.
+I wonder if we would want to implement our own drop function for this database connection.
+The drop function could delete the database, else would we not rack up databases in our tests?
+
+The book addresses the point above, saying we can add a clean-up step.
+But if performance starts to suffer from the hundreds of near empty test databases,
+we can just create a new instance. 
+This database is only for testing after all. 
+
+## Telemetry
+
+
