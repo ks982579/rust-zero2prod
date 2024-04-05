@@ -1,8 +1,9 @@
 use std::net::TcpListener;
 
-use env_logger::Env;
+// use env_logger::Env;
 use tracing::subscriber::set_global_default;
 use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
+use tracing_log::LogTracer;
 use tracing_subscriber::{
     layer::{Layered, SubscriberExt},
     EnvFilter, Registry,
@@ -15,6 +16,8 @@ use zero2prod::startup::run;
 
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
+    // Redirecting all log's events to our subscriber...
+    LogTracer::init().expect("Failed to set Logger");
     // // `init` calles `set_logger` for us, and we default to "info".
     // env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     // Removed env_logger...

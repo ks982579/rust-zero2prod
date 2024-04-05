@@ -607,4 +607,39 @@ curl --request POST --data 'name=tom%20brady&email=tb%40tb.com' 127.0.0.1:8000/s
 
 I think it hits the console in Json format.
 When a Span is closed, JSON message is printed to the console.
+But an issue arises because our terminal only shows logs directly emitted by our application.
+Basically, tracing's log feature flag ensures a log record is emitted when tracing even happens.
+But the opposite is not true. 
+To get this...
 
+```bash
+cargo add tracing-log
+```
+
+Then, hook up in the `main()` function.
+Looks like just initializing `LogTracer`.
+
+### Remove Unused Dependencies
+
+We have come a long way, still a ways to go, and already we have accumulated many dependencies.
+Some, we aren't using anymore already.
+Use this to remove
+
+```bash
+cargo install cargo-udeps
+cargo +nightly udeps
+```
+
+That'll take a minute to fetch the tool.
+And building literally takes a few minutes...
+Then run on the nightly compiler (if necessary).
+And if you don't have the [nightly compiler](https://doc.rust-lang.org/book/appendix-07-nightly-rust.html):
+
+```bash
+rustup toolchain list
+rustup toolchain install nightly
+```
+
+It won't get everything though (like logs), which you may remove manually.
+
+p. 113 4.5.10
