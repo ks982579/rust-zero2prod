@@ -491,4 +491,120 @@ We default setting to "info", but go ahead with `RUST_LOG=trace` to see some low
 
 Now, import the `log` dependency with `cargo add log`.
 A rule of thumb, "any interaction with external systems over the network should be closely monitored."
+We update now the subscriptions endpoint...
+
+Another quote, "We will happily settle for an application that is _sufficiently_ observable
+to endable us to deliver the level of service we promised to our users."
+This implies that we should debug errors with little effort. 
+If a user gives us an email address and says, "I tried to sign up and got an error... please help,"
+could we help them?
+Currently, we would try searching logs for the email but would have to ask the user for more information.
+That's a failure on _sufficient_ observability.
+Improve subscriptions endpoint.
+
+Note: SQLX logs use INFO level by default as well.
+
+Because our system handles multiple requests concurrently,
+the stream of logs can mix requests and become hard to read.
+We need to correlate all logs somehow.
+This can be done with a **request id** (sometimes called a "correlation id").
+Basically, generate a random (UUID) id to associate logs.
+
+This is good for an endpoint, but Actix-Web's Logger middleware isn't aware of the request id.
+Side-effect is we do not know what status code is sent to our new user.
+We _could_ remove actix_web's Logger and write our own middleware with a request id...
+There would be such a rewrite effort, from Actix-Web to imported crates that this approach cannot scale.
+Basically, "Logs are the wrong abstraction."
+
+So, we have been using the wrong tool. 
+We migrate from `log` to `tracing`
+
+This is good for an endpoint, but Actix-Web's Logger middleware isn't aware of the request id.
+Side-effect is we do not know what status code is sent to our new user.
+We _could_ remove actix_web's Logger and write our own middleware with a request id...
+There would be such a rewrite effort, from Actix-Web to imported crates that this approach cannot scale.
+Basically, "Logs are the wrong abstraction."
+
+So, we have been using the wrong tool. 
+We migrate from `log` to `tracing`.
+
+```bash
+cargo add tracing --features log
+```
+
+If anything, I'm getting good at importing crates. 
+Because we use the `log` feature, we can do a find-and-replace for "tracing".
+But... we want to use tracing _span_ to represent the whole HTTP request.
+
+```rust
+// {...}
+pub async fn subscribe(
+    form: web::Form<FormData>,
+    // recieving connection from application state!
+    pool: web::Data<PgPool>,
+) -> HttpResponse {
+    // Generate random unique identifier
+    let request_id = Uuid::new_v4();
+    // Improving observability
+    let request_span = tracing::info_span!(
+        "Adding a new subscriber.",
+        %request_id,
+        subscriber_email = %form.email,
+        subscriber_name = %form.name
+    );
+    // Don't actually use `enter` in async function, it is bad.
+    let _request_span_guard = request_span.enter();
+// {...}
+```
+
+The book warns not to actually use `request_span.enter()` in async functions.
+We will exit the span when the request span guard is dropped at the end of the function.
+Also note how we attache values to the span context with the `%`.
+This tell `tracing` to use the `Display` implementation for logging.
+`tracing` allows us to associate structured information to spans as collection of key-value pairs.
+See [tracing docs | crates.io](https://crates.io/crates/tracing) for more info.
+They say the guard won't exit until the async block is complete. 
+This leads to confusing, and incorrect, output.
+
+Why?
+We must explicitly step into the tracing with `.enter()` method to activate.
+It returns an instance of `Entered`, which is a guard.
+As long as the value is not dropped,
+all downstream spans and logs are registered as children of the entered span.
+Check our the Rust pattern "Resource Acquisition Is Initialization" (RAII).
+
+To work asynchronously, we need to `use tracing::Instrument`!
+It enters the span when the future is polled,
+and exits the span when the future is parked.
+
+Updating subscriptions endpoint,
+we tuck the instrument method into the `sqlx::query`. 
+We need to fix the `main()` function still, it's using `env_logger`. 
+Following a facade pattern like `log`,
+implementing the `Subscriber` trait exposes many methods to manange the lifecycle of a `Span`.
+
+Of course, tracing doesn't provide a subscriber out of the box:
+
+```bash
+cargo add tracing-subscriber --features registry,env-filter
+cargo add tracing-bunyan-formatter
+```
+
+We get another trait here called `Layer` that allows us to build a processing pipeline.
+Check out [tracing-subscriber | crates.io](https://crates.io/crates/tracing-subscriber).
+The `Registry` struct implements the `Subscriber` trait!
+
+We will also use `tracing-bunyan-formatter` becauce it implements metadata inheritance. 
+When you have this, update your main function (finally!).
+
+Wow, So if you update the `main()` and curl "health-check"... you won't see anything. 
+I don't think that endpoint is set with tracing.
+But create a new user...
+
+```bash
+curl --request POST --data 'name=tom%20brady&email=tb%40tb.com' 127.0.0.1:8000/subscriptions --verbose
+```
+
+I think it hits the console in Json format.
+When a Span is closed, JSON message is printed to the console.
 
