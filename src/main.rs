@@ -1,13 +1,4 @@
 use std::net::TcpListener;
-
-// use env_logger::Env;
-use tracing::{subscriber::set_global_default, Subscriber};
-use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
-use tracing_log::LogTracer;
-use tracing_subscriber::{
-    layer::{Layered, SubscriberExt},
-    EnvFilter, Registry,
-};
 // use sqlx::{Connection, PgConnection};
 use sqlx::PgPool;
 
@@ -21,7 +12,7 @@ use zero2prod::{
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
     // Very difficult to pin down concrete type...
-    let subscriber = get_subscriber("zero2prod".into(), "info".into());
+    let subscriber = get_subscriber("zero2prod".into(), "info".into(), std::io::stdout);
     init_subscriber(subscriber);
     // Panic if we can't read configuration!
     let configuration: Settings = get_configuration().expect("Failed to read configuration.");

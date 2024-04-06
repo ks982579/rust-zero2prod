@@ -647,3 +647,55 @@ It won't get everything though (like logs), which you may remove manually.
 Starting with the `main()` function, we want to refactor.
 Each function should have like one duty. 
 Then, we split the functions into a new "telemetry.rs" file.
+
+They are moved out so we can use them for our test suite as well. 
+Rule of thumb; everything used in the application should be reflected in integration tests.
+We then update the `spawn_app()` function in our testing suite. 
+However, this app is called multiple times, once per test.
+As mentioned before, we only want to initialize our subscriber once.
+I ran the tests and only one passes, the rest will fail.
+
+The book mentions we could use `std::sync::Once.call_once()` method.
+But we may need to use our subscriber after initialization.
+That means we will want `std::sync::SyncOnceCell`, which is not yet stable. 
+Doing a little digging, I think it's moved to `std::cell::OnceCell`.
+And the docs say for a thread-safe version use `std::sync::OnceLock`.
+
+I want to try use this instead.
+Ok, I read the [`OnceLock` docs | doc.rust-lang.org](https://doc.rust-lang.org/std/sync/struct.OnceLock.html),
+this is a thread-safe cell that can only be written to once.
+So, you call `get_or_init(fn -> F) -> &T` which either sets the cell with you function,
+or gets you a reference of it. 
+If it doesn't work then go back to page 118 to setup with correct 3rd-party package.
+
+Cargo test by default eats output unless a test fails. 
+You can run `cargo test -- --nocapture` to opt back into viewing those logs.
+We will now add a new parameter to `get_subscriber` to allow customisation of what
+_sink_ logs should be written to. 
+The internet says, "A log sink is a place where logs from a system or application are 
+collected and stored for later analysis."
+Back to "telemetry.rs"!
+
+We are adding a special `Sink` type using the `where` clause.
+It uses a strange format though: `Sink: for<'a> MakeWriter<'a> + Send + Sync + 'static`.
+This is a [**Higher-Ranked Trait Bound**](https://doc.rust-lang.org/nomicon/hrtb.html) (HRTB),
+something straight out of the Nomicon...
+It is basically like, you know when you return a reference from a function,
+the function requires the lifetime to ensure it isn't returning like a _null_ reference?
+This is syntax to help pass in a lifetime when needed by traits.
+For the trait, it is read "for all choices of `'a`..." and produces an infinite list of trait bounds 
+that our trait, usually a function, must satisfy. 
+Adding an additional parameter to this function means passing `std::io::stdout` into it 
+in the `main()` function also.
+
+What is the [`MakeWriter`](https://docs.rs/tracing-subscriber/latest/tracing_subscriber/fmt/trait.MakeWriter.html) trait?
+
+How do we handle this in our test suite now?
+We initialize the subscriber based on `TEST_LOG` environment variable coming in.
+Technically the `std::io::{stdout, sink}` are different types,
+making it challenging to return a value and set it.
+So we do this work-around of setting everything in the if statement. 
+
+So, run `TEST_LOG=true cargo test health_check_works | bunyan`...
+You can _prettify_ output if you `cargo install bunyan` and pass output to it (i guess).
+Just passing in the environment variable helps to see output even on passing tests.

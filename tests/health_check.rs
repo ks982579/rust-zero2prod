@@ -2,14 +2,21 @@ use reqwest::Response;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use std::net::TcpListener;
 use uuid::Uuid;
-use zero2prod::configuration::{get_configuration, DatabaseSettings, Settings};
-use zero2prod::startup::run;
+use zero2prod::{
+    configuration::{get_configuration, DatabaseSettings, Settings},
+    startup::run,
+    telemetry::{get_subscriber, init_subscriber},
+};
+
+use std::sync::OnceLock;
 
 /**
 * `tokio::test` is like `tokio::main`
 * I tried going without and you can't runs tests async.
 * Use `cargo expand --test health_check` (name of file) if you are curious
 **/
+
+static TRACING: OnceLock<()> = OnceLock::new();
 
 /// Struct to hold app connection information.
 pub struct TestApp {
@@ -46,6 +53,19 @@ pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
 // Remove the `async` here as well...
 // Making function async now
 async fn spawn_app() -> TestApp {
+    // Subscribing to Trace events (like in `main()`)
+    TRACING.get_or_init(|| {
+        if std::env::var("TEST_LOG").is_ok() {
+            let subscriber =
+                get_subscriber("test".to_string(), "info".to_string(), std::io::stdout);
+            init_subscriber(subscriber);
+        } else {
+            let subscriber = get_subscriber("test".to_string(), "info".to_string(), std::io::sink);
+            init_subscriber(subscriber);
+        }
+    });
+
+    // binding to localhost on random port (port 0 will tell OS to find random open port)
     let listener: TcpListener =
         TcpListener::bind("127.0.0.1:0").expect("Failed to bind to random port.");
     // Retrieve the port assigned by the OS
