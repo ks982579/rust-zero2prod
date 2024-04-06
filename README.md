@@ -642,4 +642,8 @@ rustup toolchain install nightly
 
 It won't get everything though (like logs), which you may remove manually.
 
-p. 113 4.5.10
+### Clean up
+
+Starting with the `main()` function, we want to refactor.
+Each function should have like one duty. 
+Then, we split the functions into a new "telemetry.rs" file.
