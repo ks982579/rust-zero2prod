@@ -557,6 +557,10 @@ pub async fn subscribe(
 // {...}
 ```
 
+What the hell is a [`tracing::span` | docs.rs](https://docs.rs/tracing/latest/tracing/span/index.html)?
+The docs say a **span** represents a period of time the program was executing in a _particular_ context. 
+You create the span and enter it in 2 separate steps in the manual implementation.
+
 The book warns not to actually use `request_span.enter()` in async functions.
 We will exit the span when the request span guard is dropped at the end of the function.
 Also note how we attache values to the span context with the `%`.
@@ -699,3 +703,77 @@ So we do this work-around of setting everything in the if statement.
 So, run `TEST_LOG=true cargo test health_check_works | bunyan`...
 You can _prettify_ output if you `cargo install bunyan` and pass output to it (i guess).
 Just passing in the environment variable helps to see output even on passing tests.
+
+### Refactoring
+
+Good time to look back at our subscriptions route.
+As pointed out in the book, implementing logging has bloated out function,
+or added noise as they say.
+Interestingly enough, the `tracing` crate gives us the `tracing::instrument` procedural macro.
+It can _wrap_ our `subscribe` function in a span.
+
+Normally, function arguments aren't displayable on log records.
+We can specify more explicitly what and how things are captured,
+like using `skip()` to ignore things.
+It also takes care to use `Instrument::instrument` if it is applied to asynchronous function.
+
+What is the [`tracing::instrument` | docs.rs](https://docs.rs/tracing/latest/tracing/attr.instrument.html) macro?
+Coming from a _Python_ background, I think of it like a decorator.
+The docs suggest it is like a wrapper to create and enter a tracing span every time the function is called. 
+We have implemented `skip()`, but there's also a `skip_all` which is not invoked like a function.
+
+I lost a bunch of notes, that's great...
+
+So, the default behaviour of that macro is to display all arguments by their debug trait.
+That is a security event waiting to happen.
+Luckily, there's a [`secrecy` | crates.io](https://crates.io/crates/secrecy) crate we can utilize.
+You wrap your sensitive value in a struct which updates the `Debug` trait to say "Redacted" (or something).
+
+Try wrapping the database password in the configuration Rust file.
+It ends up breaking the connection string functions.
+This is because secrecy has also removed the `Display` trait. 
+We need to bring in the `ExposeSecret` trait, see the file for example.
+
+This also means in the `main.rs` we must also expose the secret.
+The tests also need to be updated, since they use a similar function that now returns `Secret<String>`.
+
+### Adding Middleware!!!
+
+Logs should be labeled with a reqeust id. 
+We can bring in another crate.
+
+```bash
+cargo add tracing-actix-web
+```
+
+It is designed to be a drop-in replacement of actix-web logger, but based on tracing instead of log.
+Just adding it basically to the `run()` function.
+Note that we create a `request_id` on the `subscribe()` function that will override this new tracing one.
+Remove it.
+
+As a side note:
++ `tracing-actix-web` is OpenTelemetry-compatible. So, if you brought in `tracing-opentelemetry`,
+you could ship your spans to an OpenTelemetry-compatible service!
++ `tracing-error` can make error types better for troubleshooting.
+
+## Going Live?
+
+This section will be very handy as we learn to dockerize our application and deploy it (to DigitalOcean).
+Committing to the main brach will _automatically_ trigger the deployment of the latest version of our application.
+The focus is on _philosphy_ because there are too many moving parts. 
+
+### Dockerization of our App
+
+First task is to write a Dockerfile.
+Think of it like a recipe for the application environment. 
+Getting our database ready is more trouble than you'd think.
+We need to run the following:
+
+```bash
+cargo sqlx prepare --workspace
+```
+
+Ok, so I updated the version of the book when the command wasn't working.
+The above command is working, and no need to add any weird "offline" feature.
+
+This is after trying to give `sqlx` the `offline` feature, which didn't work with `add` for me.
