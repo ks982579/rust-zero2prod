@@ -775,5 +775,54 @@ cargo sqlx prepare --workspace
 
 Ok, so I updated the version of the book when the command wasn't working.
 The above command is working, and no need to add any weird "offline" feature.
+We actually then pass in `SQLX_OFFLINE` environment variable as `true` in the Dockerfile.
+We can build a Docker container now with:
 
-This is after trying to give `sqlx` the `offline` feature, which didn't work with `add` for me.
+```bash
+docker build --tag zero2prod --file Dockerfile .
+```
+
+Something about using the `--check` flag to ensure our database doesn't fall out of sync with the json file.
+
+Once the image is built, we can run it:
+
+```bash
+docker run zero2prod
+```
+
+However, it won't work because of the connection with Postgres.
+In `main()` we use `connect_lazy`, which is not a future, so we don't await it.
+
+We will also have issues with using '127.0.0.1' as our host address.
+We instruct our application to only accept connections coming from the same machine. 
+Using '0.0.0.0' instructs our application to accept connections from _any_ network interface.
+We will use that for Docker only, and leave localhost for local development. 
+Making adjustments to `configurations.rs` and `configuration.yaml`.
+
+To differentiate between the environments, we make our configuration _hierarchical_.
+So, there isn't a lot more we can do with what we currently have.
+The idea is to create an environment varialbe, `APP_ENVIRONMNET`,
+that we can set to "production" or "local".
+Based on its value, we load environment-specific configuration files. 
+
+We can start with updates to the `configuration::get_configuration()` function.
+Ok, we added an Enum, implemented some traits and created some new files.
+Now, we update our Dockerfile.
+
+The Docker image takes a while to build...
+
+```bash
+docker build --tag zero2prod --file Dockerfile .
+docker run -p 8000:8000 zero2prod
+```
+
+Because we didn't run this in detach mode, get a new terminal:
+
+```bash
+curl -v http://127.0.0.1:8000/health-check
+```
+
+I was very happy to see this finally work.
+It takes a long time to copy in everything, that needs to be trimmed down _a lot_.
+I also forgot to create the `./configuration/` directory.
+That meant the build didn't work right and I had to rebuild.
