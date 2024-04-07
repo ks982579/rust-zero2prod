@@ -799,7 +799,7 @@ Using '0.0.0.0' instructs our application to accept connections from _any_ netwo
 We will use that for Docker only, and leave localhost for local development. 
 Making adjustments to `configurations.rs` and `configuration.yaml`.
 
-To differentiate between the environments, we make our configuration _hierarchical_.
+#To differentiate between the environments, we make our configuration _hierarchical_.
 So, there isn't a lot more we can do with what we currently have.
 The idea is to create an environment varialbe, `APP_ENVIRONMNET`,
 that we can set to "production" or "local".
@@ -826,3 +826,75 @@ I was very happy to see this finally work.
 It takes a long time to copy in everything, that needs to be trimmed down _a lot_.
 I also forgot to create the `./configuration/` directory.
 That meant the build didn't work right and I had to rebuild.
+
+### Database Connection to Docker
+
+Ok, the Application works but it isn't connected to the database correctly.
+This has to do with using `connect_lazy`.
+We can specify the network as `--network=host` and put Postgres on the same network.
+Or we could use `docker-compose` because it puts all containers on the same network by default.
+We can also create a user-defined network.
+
+However, we leave it be for the moment... ok.
+
+### Optimise Docker Image
+
+The actual host machine won't really run `docker build`.
+Instead, it'll use `docker pull` to _download_ a prebuilt image. 
+To use an image we pay for its download cost.
+That is directly related to _size_.
+
+Wow, I am officially very impressed. 
+Somehow the image is just 97.2MB currently and the build time is very fast.
+I didn't make changes to the source code so it's just pulling from cache,
+but then the post build after compilation is quick. 
+```bash
+docker images zero2prod  # it will display the size
+```
+
+My image is like almost 11GB!
+
+Start with a `.dockerignore` file.
+Ignoring unnecessary files and directories will greatly reduce build size.
+
+But Rust's binaries are _statically linked_ (mostly).
+This means we do not need to keep source code nor intermediate compilation artifacts.
+We will create a multi-stage build in Docker:
+1. Builder stage to generate a compiled binary.
+2. A Runtime stage to run said binary.
+
+The `runtime` is our final image.
+The `builder` stage is thrown away at the end of the build. 
+Will we try to build again?
+
+```bash
+docker build --tag zero2prod --file Dockerfile .
+```
+
+Wow, not only was it much faster not copying in all of those extra files,
+but the image is only 1.43GB now.
+
+And if you really know what you are doing you can actually run the binary on just the bare OS as the base image.
+The book uses `debian:bookworm-slim`.
+You have to know what your program requires though and install packages accordingly.
+For example, ours will use OpenSSL because it is dynamically linked by some of the dependencies.
+It also requires "ca-certifactes" to verify TLS certificates for HTTPS connections.
+
+Is that as small as we can go?
+Actually, you can look into `rust:1.XX-alpine` image.
+Alpine is a Linux distribution designed to be small and secure.
+It's out of scope because you would have to cross-compile to linux-musl.
+The book (p. 150) also suggest "stripping symbols" from the binary and provides a link for more information.
+
+Also worth noting that because of caching, the order of operations is important.
+Docker stops pulling cache once it hits a change. 
+So, things that change often, like source code, should be written as low as possible. 
+
+Cargo is also a little weird.
+Most languages copy in a "lock-file" to build the dependencies.
+Then you copy in the source code and build the project.
+The `cargo build` is unfortunately a one-stop-shop for all building. 
+
+The author made a tool, [`cargo-chef`| github](https://github.com/LukeMathWalker/cargo-chef)
+that works nicely into docker containers.
+There's explicit instructions as well.
