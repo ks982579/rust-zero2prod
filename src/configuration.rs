@@ -3,7 +3,10 @@ use std::path::PathBuf;
 
 use secrecy::{ExposeSecret, Secret};
 use serde_aux::field_attributes::deserialize_number_from_string;
-use sqlx::postgres::PgConnectOptions;
+use sqlx::{
+    postgres::{PgConnectOptions, PgSslMode},
+    ConnectOptions,
+};
 
 const APP_ENVIRONMENT: &str = "APP_ENVIRONMENT";
 
@@ -62,12 +65,17 @@ pub struct DatabaseSettings {
     pub password: Secret<String>,
     pub host: String,
     pub database_name: String,
+    // Determine if encrypted connection required
+    pub require_ssl: bool,
 }
 
 impl DatabaseSettings {
     // Renamed from "connection_string"
     pub fn with_db(&self) -> PgConnectOptions {
-        self.without_db().database(&self.database_name)
+        let mut options: PgConnectOptions = self.without_db().database(&self.database_name);
+        // Book takes slight different approach,
+        // But `.log_statements` consumes self, and returns `Self`
+        options.log_statements(tracing_log::log::LevelFilter::Trace)
         // Secret::new(format!(
         //     "postgres://{}:{}@{}:{}/{}",
         //     self.username,
@@ -79,11 +87,18 @@ impl DatabaseSettings {
     }
     // Renamed from `connection_string_without_db(&self) -> Secret<String>`
     pub fn without_db(&self) -> PgConnectOptions {
+        let ssl_mode = if self.require_ssl {
+            PgSslMode::Require
+        } else {
+            // This tries to encrypt, but can fall back to unencrypted
+            PgSslMode::Prefer
+        };
         PgConnectOptions::new()
             .host(&self.host)
             .username(&self.username)
             .password(&self.password.expose_secret())
             .port(self.port)
+            .ssl_mode(ssl_mode)
         // Secret::new(format!(
         //     "postgres://{}:{}@{}:{}",
         //     self.username,

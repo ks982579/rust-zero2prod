@@ -1021,3 +1021,20 @@ Great, returning a string then couples functions to the database with connection
 Update `main.rs` and the tests, which connect with the database.
 
 Now we add `require_ssl` property fo the `DatabaseSettings` struct.
+We also update the local and production configuation YAML files.
+Updating DataBase Settings to trace database as well with a new `LevelFilter`.
+
+Then, we update the `spec.yaml` with loads of environment variables.
+There's a [How To | digitalocean.com](https://docs.digitalocean.com/products/app-platform/how-to/update-app-spec/) section.
+Still looking for docs for this app spec tho. 
+
+Here's what you do:
+
+```bash
+doctl apps list
+doctl apps update <APP-ID> --spec=spec.yaml
+git commit -am "<Commit-message>"
+git push origin main
+```
+
+That will trigger a new deployment.
