@@ -1,6 +1,7 @@
 use secrecy::ExposeSecret;
 use std::net::TcpListener;
 // use sqlx::{Connection, PgConnection};
+use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
 
 use zero2prod::{
@@ -22,9 +23,10 @@ async fn main() -> Result<(), std::io::Error> {
     //     PgConnection::connect(&configuration.database.connection_string())
     //         .await
     //         .expect("Failed to connect to Postgres.");
+    // let connection_pool: PgPool = PgPool::connect_lazy(&configuration.database.with_db())
+    //     .expect("Failed to connect to Postgres.");
     let connection_pool: PgPool =
-        PgPool::connect_lazy(&configuration.database.connection_string().expose_secret())
-            .expect("Failed to connect to Postgres.");
+        PgPoolOptions::new().connect_lazy_with(configuration.database.with_db());
     // Update port based on new settings
     let address = format!(
         "{}:{}",

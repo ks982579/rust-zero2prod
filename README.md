@@ -898,3 +898,59 @@ The `cargo build` is unfortunately a one-stop-shop for all building.
 The author made a tool, [`cargo-chef`| github](https://github.com/LukeMathWalker/cargo-chef)
 that works nicely into docker containers.
 There's explicit instructions as well.
+
+### Deployment to DigitalOcean
+
+p. 152 / 171
+
+I tried to sign up on DigitalOcean, they charged my credit card, and then said they needed more information.
+They reverted the money, but I still need to wait 24 hours for a manual review of my account. 
+Try to continue whilst under review.
+
+DigitalOcean uses what they call an _App Spec_ file. 
+
+p. 154...
+
+DigitalOcean also takes care of HTTPS for us?
+That's actually very nice. 
+
+We will need to _provision_ a database.
+
+---
+
+Honestly, going to have to skip this section because DigitalOcean is making it really hard to sign-up.
+I'm about as real human as it gets so something is wrong with their software.
+I'm borderline taking the side of never recommending their platform.
+
+---
+
+Making update to allow environment variables from a platform to be passed it.
+We have a struct called `settings`.
+By doing this
+
+```rust
+let settings = config::Config::builder()
+    // {...}
+    .add_source(
+        config::Environment::with_prefix("APP")
+            .prefix_separator("_")
+            .separator("__")
+    )
+    .build()?;
+```
+
+We can now dynamically set environment variables on the platform.
+We pass in something like `APP_APPLICATION__PORT=4269`,
+and the program sets `Settings.application.port`.
+
+Also, we must import:
+
+```bash
+cargo add serde-aux
+```
+
+Environment variables are stings for the config crate.
+It will fail to pick up integers if using standard deserialization from serde.
+
+DigitalOcean (hard to sign-up) requires SSL mode,
+our database does not handle currently.
