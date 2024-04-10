@@ -996,4 +996,28 @@ curl -v https://zero2prod-abc123.ondigitalocean.app/health-check
 The URL may differ, that's not my acutal one.
 But it did return status 200.
 
+Now we did update the `spec.yaml` and I pushed to GitHub.
+I think that triggers a new build with out settings.
+But the books suggests:
 
+```bash
+doctl apps list # get app ID
+docts apps update <APP-ID> --spec=spec.yaml
+```
+
+This terminated the build from the push, and started another build.
+We give it a while, updating project to take in environment variables from everywhere.
+Like a while...
+
+In the app, under settings, there's a "Components" tab. 
+You can find the "Connection String", which is quite long.
+Notice it has `postgresql://newletter:.../newsletter?sslmode=require`.
+We must refactor our `DatabaseSettings` now for this.
+
+I did those refactors previous, just didn't write about it.
+We have the database struct actually return a connection, or `PgConnectOptions`.
+Great, returning a string then couples functions to the database with connection setup.
+
+Update `main.rs` and the tests, which connect with the database.
+
+Now we add `require_ssl` property fo the `DatabaseSettings` struct.

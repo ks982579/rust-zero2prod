@@ -104,6 +104,7 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
         .unwrap_or_else(|_| "local".into())
         .try_into()
         .expect("Failed to parse APP_ENVIRONMENT");
+    // Environments are either "local" or "production" currently
     let environment_file: String = format!("{}.yaml", environment.as_str());
 
     // Initialise our configuration reader
