@@ -954,3 +954,34 @@ It will fail to pick up integers if using standard deserialization from serde.
 
 DigitalOcean (hard to sign-up) requires SSL mode,
 our database does not handle currently.
+
+In a Crazy turn of events, I filed a couple of tickets and the platform recognized my legitimate interest in their platform.
+I switched to using PayPal, as I do not think that the bank / debit card I was using was working for them.
+If you are turned down, don't give up. 
+Or just use PayPal from the start.
+
+Information about linking Github and DigitalOcean isn't exactly forthcoming.
+1. Log into DigitalOcean
+2. On left side pannel, under "MANAGE", click "App Platform".
+3. The first button should say "Create App" or something, which begins process for linking.
+4. Once linked you do not have to proceed on the website.
+
+Now, create an API token on the website.
+
+Then:
+
+```bash
+doctl auto init
+```
+
+This will give link your terminal to DigitalOcean.
+
+Finally:
+
+```bash
+doctl apps create --spec spec.yaml
+docts apps list
+```
+
+This spins up a droplet or whatever.
+For more information on the CLI, [`doctl` reference | digitalocean.com](https://docs.digitalocean.com/reference/doctl/reference/).
