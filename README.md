@@ -985,3 +985,15 @@ docts apps list
 
 This spins up a droplet or whatever.
 For more information on the CLI, [`doctl` reference | digitalocean.com](https://docs.digitalocean.com/reference/doctl/reference/).
+Watching the deployment build logs is exciting. 
+But note that this process can take a while as it compiles your project. 
+And then it goes live :)
+
+```bash
+curl -v https://zero2prod-abc123.ondigitalocean.app/health-check
+```
+
+The URL may differ, that's not my acutal one.
+But it did return status 200.
+
+

@@ -25,5 +25,11 @@ services:
     routes:
       - path: /
 databases:
-
-# PG = Postgres
+  # PG = Postgres
+  - engine: PG
+    name: newsletter
+    # small bill
+    num_nodes: 1
+    size: db-s-dev-database
+    # Postgres Version
+    version: "12"
