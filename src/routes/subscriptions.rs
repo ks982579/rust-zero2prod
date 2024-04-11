@@ -3,7 +3,10 @@ use chrono::Utc;
 // use sqlx::PgConnection;
 use sqlx::PgPool;
 // use tracing::Instrument;
+use unicode_segmentation::UnicodeSegmentation;
 use uuid::Uuid;
+
+use crate::domain::{NewSubscriber, SubscriberName};
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
@@ -14,15 +17,18 @@ pub struct FormData {
 /// This function takes care of database logic with no awareness of surrounding web framework.
 /// Excelent separation of concerns.
 #[tracing::instrument(name = "Saving new subscriber details in the database.", skip_all)]
-pub async fn insert_subscriber(pool: &PgPool, form: &FormData) -> Result<(), sqlx::Error> {
+pub async fn insert_subscriber(
+    pool: &PgPool,
+    new_subscriber: &NewSubscriber,
+) -> Result<(), sqlx::Error> {
     sqlx::query!(
         r#"
         INSERT INTO subscriptions (id, email, name, subscribed_at)
         values($1, $2, $3, $4)
         "#,
         Uuid::new_v4(),
-        form.email,
-        form.name,
+        new_subscriber.email,
+        new_subscriber.name.inner_ref(),
         Utc::now()
     )
     .execute(pool)
@@ -33,6 +39,20 @@ pub async fn insert_subscriber(pool: &PgPool, form: &FormData) -> Result<(), sql
         // Using `?` will return early if failed with `sqlx::Error`
     })?;
     Ok(())
+}
+
+/// Returns `true` if input satisfies all our validation constraints
+/// on subscriber names, `false` otherwise.
+pub fn is_valid_name(s: &str) -> bool {
+    // `.trim()` returns a view over the input without trailing
+    // whitespace-like characters.
+    let is_empty_or_whitespace = s.trim().is_empty();
+
+    let is_too_long = s.graphemes(true).count() > 256;
+    let forbidden_characters = ['/', '(', ')', '"', '<', '>', '\\', ';', '{', '}'];
+    let contains_forbidden_characters: bool = s.chars().any(|g| forbidden_characters.contains(&g));
+
+    !(is_empty_or_whitespace || is_too_long || contains_forbidden_characters)
 }
 
 /// Actix-Web calls Form::from_request() on our arguments.
@@ -68,9 +88,14 @@ pub async fn subscribe(
     // Don't have to call `.enter()` on query_span! because `.instrument` takes care of it.
     let query_span = tracing::info_span!("Saving new subscriber details in database.");
     ----------------------------------------------------- */
+    // `form.0` gives access to `FormData`, since `web::Form` is just a wrapper.
+    let new_subscriber: NewSubscriber = NewSubscriber {
+        email: form.0.email,
+        name: SubscriberName::parse(form.0.name),
+    };
     // This returns a Result that must be used!
     // the book passes in `&pool` which might have some hidden dereferencing.
-    match insert_subscriber(pool.get_ref(), &form).await {
+    match insert_subscriber(pool.get_ref(), &new_subscriber).await {
         Ok(_) => {
             /* --------------------------------------------------
             * instrument and query_span remove need for log

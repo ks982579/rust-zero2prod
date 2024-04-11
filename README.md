@@ -1038,3 +1038,69 @@ git push origin main
 ```
 
 That will trigger a new deployment.
+
+The last thing to do is to push our migrations. 
+Note, it's a small note in the book, but you must disable "Trusted Sources" to push migations locally.
+The database will not connect with you else.
+You can do this from your app's settings.
+
+```bash
+DATABASE_URL=postgresql://... sqlx migrate run
+```
+
+Should work.
+
+There's not really a way to "turn off" the drop unless you destroy the container.
+Probably work looking into.
+
+## Rejecting Invalid Subscribers - Part I
+
+We cut corners to get this far.
+Let's write a test to _probe_ troublesome inputs.
+
+The test is set to pass with bad data.
+It should fail, probably a rewrite later.
+We want a name and email, and should validate that data.
+
+We aren't checking passports, so we can settle on the name not being empty.
+But what about SQL injections or other attacks?
++ Denial of Service
++ Data Theft
++ Phishing
+
+A "Layered Security Approach" is also called _defense in depth_.
+We cannot handle every threat, but can mitigate risk substantially by introducing measures on multiple levels.
++ input validation
++ parametrised queries
++ escaping parametrised input in emails
++ etc...
+
+What validation can we perform on names?
++ enforce maximum length, 256 characters should be plenty.
++ Reject troublesome characters such as `/()"<>\{}`.
+
+Of course, Rust has a small issue with Strings because... Strings are complicated.
+I've seen many videos, but this [UTF-8 article | wikipedia.org](https://en.wikipedia.org/wiki/UTF-8) explains UTF-8 nicely.
+A "grapheme", which is the actual smallest unit of writing (a letter), can be comprised of 1 to 4 bytes. 
+Some graphemes, like "å" are compose of two character!
+This saves space, not storing the unnecessary trailing 3 bytes all of the time, but makes it hard to... traverse strings.
+
+My understanding is the first byte encodes the length of the character, 
+and ajoining bytes begin with `10xxxxxx`.
+
+```bash
+cargo add unicode-segmentation
+```
+
+We put it into our endpoint but then the book discusses local and global validation approaches.
+We have a validation function, but using it doesn't scale well. 
+We need a _parsing function_ to tranfrom unstructured data into structured data.
+
+### Type-Driven Development
+
+This leads to a new topic I have been hearing about called **Type-Driven Development**.
+And so, we add a new "domain" module!
+Suggested "Parse, don't validate" by Alexis King is a good starting point on type-driven development.
+And "Domain Modelling Made Functional" by Scott Wlaschin is a good book for a deeper look into the topic.
+
+
