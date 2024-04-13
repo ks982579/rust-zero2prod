@@ -1155,3 +1155,22 @@ fn dummy_test() {
 That is very clean.
 
 With that, we can add unit tests to our `src/domain.rs` file.
+They aren't exactly passing though.
+This is because we are calling `.expect()` on our `SubscriberName::parse()`,
+And that will panic if it gets an error.
+We much change the `subscribe` return to "400 BAD REQUEST" on errrors. 
+
+Ok, to run the integration tests:
+
+```bash
+cargo test --test <INTEGRATION_TEST_FILE_NAME>
+```
+
+When it comes to validating emails, the author recomends [`validator` | crates.io](https://crates.io/crates/validator).
+So, sure, we can throw it in.
+
+```rust
+cargo add validator --features=derive
+```
+
+p. 212 - 6.12.2

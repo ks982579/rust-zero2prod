@@ -88,10 +88,15 @@ pub async fn subscribe(
     // Don't have to call `.enter()` on query_span! because `.instrument` takes care of it.
     let query_span = tracing::info_span!("Saving new subscriber details in database.");
     ----------------------------------------------------- */
+    let name = match SubscriberName::parse(form.0.name) {
+        Ok(name) => name,
+        // return early if name is invalid w/400
+        Err(_) => return HttpResponse::BadRequest().finish(),
+    };
     // `form.0` gives access to `FormData`, since `web::Form` is just a wrapper.
     let new_subscriber: NewSubscriber = NewSubscriber {
         email: form.0.email,
-        name: SubscriberName::parse(form.0.name).expect("Name validation failed."),
+        name,
     };
     // This returns a Result that must be used!
     // the book passes in `&pool` which might have some hidden dereferencing.
