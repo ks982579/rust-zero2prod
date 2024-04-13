@@ -28,7 +28,7 @@ pub async fn insert_subscriber(
         "#,
         Uuid::new_v4(),
         new_subscriber.email,
-        new_subscriber.name.inner_ref(),
+        new_subscriber.name.as_ref(),
         Utc::now()
     )
     .execute(pool)
@@ -91,7 +91,7 @@ pub async fn subscribe(
     // `form.0` gives access to `FormData`, since `web::Form` is just a wrapper.
     let new_subscriber: NewSubscriber = NewSubscriber {
         email: form.0.email,
-        name: SubscriberName::parse(form.0.name),
+        name: SubscriberName::parse(form.0.name).expect("Name validation failed."),
     };
     // This returns a Result that must be used!
     // the book passes in `&pool` which might have some hidden dereferencing.

@@ -1103,4 +1103,55 @@ And so, we add a new "domain" module!
 Suggested "Parse, don't validate" by Alexis King is a good starting point on type-driven development.
 And "Domain Modelling Made Functional" by Scott Wlaschin is a good book for a deeper look into the topic.
 
+We created an `.inner_ref()` method which works very well.
+However, Rust library has a trait called `AsRef`.
+You use it when you want a reference to something that is, or is similar, to what  you have.
 
+A popular technique / pattern is something like:
+
+```rust
+pub fn this_slice_function<T: AsRef<str>>(s: T) {
+    let s = s.as_ref();
+    // {...}
+}
+```
+
+We require `T` to implement the `AsRef` trait, which is a _trait bound_.
+Apparently the Rustt standard library `std::fs` does something like this.
+functions take arguments `P: AsRef<Path>` instead of forcing the user to convert everything into `Path`.
+Examples to convert to `Path` could be from `String`, `PathBuf`, `OsString`, etc...
+
+So, we update our things and now there's an `hyper::Error(IncompleteMessage)` error.
+This means the API is terminating the requst processing abruptly and is not graceful. 
+This is because we panic when the parsing fails.
+Panicing is for **unrecoverable** errors. 
+If you application panics in response to user input, it's probably a bug. 
+
+In the foot-note of page 182, the author states that Actix-Web is resilient to crashing.
+A panic will not crash the whole application, hopefully just one of the workers. 
+Also, it will just spawn a new worker to replace the ones that failed. 
+
+The `Result<T, E>` type is used when a return type is _fallible_.
+
+We add a new crate:
+
+```rust
+cargo add claims
+```
+
+Regular `assert!(result.is_ok())` only prints that an assertion failed during testing.
+It doesn't print the error message which can be critical. 
+You could match first and print... or download this package.
+It has nice features such as:
+
+```rust
+#[test]
+fn dummy_test() {
+    let result: Result<&str, &str> = Err("Failure Message.");
+    claims::assert_ok!(result);
+}
+```
+
+That is very clean.
+
+With that, we can add unit tests to our `src/domain.rs` file.
