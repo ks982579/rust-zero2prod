@@ -41,7 +41,7 @@ pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
 
     // Migrate database
     // let connection_pool = PgPool::connect(&config.connection_string().expose_secret())
-    let connection_pool = PgPool::connect_with(config.without_db())
+    let connection_pool = PgPool::connect_with(config.with_db())
         .await
         .expect("Failed to connect to Postgres.");
     sqlx::migrate!("./migrations")
@@ -84,6 +84,7 @@ async fn spawn_app() -> TestApp {
     // let connection_pool: PgPool = PgPool::connect(&configuration.database.connection_string())
     //     .await
     //     .expect("Failed to connect to Postgres.");
+    dbg!(&configuration);
     let connection_pool: PgPool = configure_database(&configuration.database).await;
 
     // adding clone of connection pool
@@ -136,7 +137,7 @@ async fn subscribe_returns_200_for_valid_form_data() {
     let client: reqwest::Client = reqwest::Client::new();
 
     // Act
-    let body: &str = "name=le%20guin&email=ursula_le_guin%40gmail.com";
+    let body: &str = "name=le%20guin&email=ursula_le_guin%40example.com";
     let response: Response = client
         .post(&format!("{}/subscriptions", &test_app.address))
         .header("Content-Type", "application/x-www-form-urlencoded")
@@ -145,6 +146,7 @@ async fn subscribe_returns_200_for_valid_form_data() {
         .await
         .expect("Failed to execute request.");
 
+    dbg!(&response);
     // Assert
     assert_eq!(200, response.status().as_u16());
 
@@ -157,7 +159,7 @@ async fn subscribe_returns_200_for_valid_form_data() {
         .await
         .expect("Failed to fetch saved subscription.");
 
-    assert_eq!(saved.email, "ursula_le_guin@gmail.com");
+    assert_eq!(saved.email, "ursula_le_guin@example.com");
     assert_eq!(saved.name, "le guin");
 }
 

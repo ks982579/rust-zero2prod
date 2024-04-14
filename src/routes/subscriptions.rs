@@ -6,12 +6,23 @@ use sqlx::PgPool;
 use unicode_segmentation::UnicodeSegmentation;
 use uuid::Uuid;
 
-use crate::domain::{NewSubscriber, SubscriberName};
+use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberName};
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
     email: String,
     name: String,
+}
+
+// Implementing `TryFrom` automagically give you `TryInto`
+impl TryFrom<FormData> for NewSubscriber {
+    type Error = String;
+
+    fn try_from(value: FormData) -> Result<Self, Self::Error> {
+        let name = SubscriberName::parse(value.name)?;
+        let email = SubscriberEmail::parse(value.email)?;
+        Ok(Self { email, name })
+    }
 }
 
 /// This function takes care of database logic with no awareness of surrounding web framework.
@@ -24,10 +35,10 @@ pub async fn insert_subscriber(
     sqlx::query!(
         r#"
         INSERT INTO subscriptions (id, email, name, subscribed_at)
-        values($1, $2, $3, $4)
+        VALUES ($1, $2, $3, $4)
         "#,
         Uuid::new_v4(),
-        new_subscriber.email,
+        new_subscriber.email.as_ref(),
         new_subscriber.name.as_ref(),
         Utc::now()
     )
@@ -53,6 +64,13 @@ pub fn is_valid_name(s: &str) -> bool {
     let contains_forbidden_characters: bool = s.chars().any(|g| forbidden_characters.contains(&g));
 
     !(is_empty_or_whitespace || is_too_long || contains_forbidden_characters)
+}
+
+/// For parsing subscribers
+pub fn parse_subscriber(form: FormData) -> Result<NewSubscriber, String> {
+    let name = SubscriberName::parse(form.name)?;
+    let email = SubscriberEmail::parse(form.email)?;
+    Ok(NewSubscriber { email, name })
 }
 
 /// Actix-Web calls Form::from_request() on our arguments.
@@ -88,15 +106,11 @@ pub async fn subscribe(
     // Don't have to call `.enter()` on query_span! because `.instrument` takes care of it.
     let query_span = tracing::info_span!("Saving new subscriber details in database.");
     ----------------------------------------------------- */
-    let name = match SubscriberName::parse(form.0.name) {
-        Ok(name) => name,
-        // return early if name is invalid w/400
-        Err(_) => return HttpResponse::BadRequest().finish(),
-    };
     // `form.0` gives access to `FormData`, since `web::Form` is just a wrapper.
-    let new_subscriber: NewSubscriber = NewSubscriber {
-        email: form.0.email,
-        name,
+    // Can also try `NewSubscriber::try_from(form.0)`.
+    let new_subscriber: NewSubscriber = match form.0.try_into() {
+        Ok(form) => form,
+        Err(_) => return HttpResponse::BadRequest().finish(),
     };
     // This returns a Result that must be used!
     // the book passes in `&pool` which might have some hidden dereferencing.
@@ -111,7 +125,8 @@ pub async fn subscribe(
             ------------------------------------------------ */
             HttpResponse::Ok().finish()
         }
-        Err(_) => {
+        Err(e) => {
+            dbg!(e);
             // Note using std::fmt::Debug format for error
             // error log falls outside query_span
             // tracing::error!("Failed to execute query: {:?}", e);

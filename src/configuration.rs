@@ -43,13 +43,13 @@ impl TryFrom<String> for Environment {
 }
 
 /// 2 config values: Application Port; Database Connection;
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Debug)]
 pub struct Settings {
     pub database: DatabaseSettings,
     pub application: ApplicationSettings,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Debug)]
 pub struct ApplicationSettings {
     #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
@@ -57,7 +57,7 @@ pub struct ApplicationSettings {
 }
 
 /// Needs to be desearlized so it's _parent_ can also be desearlized.
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Debug)]
 pub struct DatabaseSettings {
     #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
@@ -74,7 +74,7 @@ impl DatabaseSettings {
     pub fn with_db(&self) -> PgConnectOptions {
         let mut options: PgConnectOptions = self.without_db().database(&self.database_name);
         // Book takes slight different approach,
-        // But `.log_statements` consumes self, and returns `Self`
+        // But `.log_statements` consumes self, and returns ``
         options.log_statements(tracing_log::log::LevelFilter::Trace)
         // Secret::new(format!(
         //     "postgres://{}:{}@{}:{}/{}",

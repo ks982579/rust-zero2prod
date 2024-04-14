@@ -1173,4 +1173,75 @@ So, sure, we can throw it in.
 cargo add validator --features=derive
 ```
 
-p. 212 - 6.12.2
+Well, I think `validator` changed since the book, from version 0.16 to 0.18. 
+Must read documentation to figure out the updated way to use it. 
+Check out [Validator docs | docs.rs](https://docs.rs/validator/0.18.1/validator/).
+It's much more complicated, using the `alloc::borrow::Cow`, or "clone-on-write" smart pointer.
+
+I kind of taped together a solution and it works.
+Glad I was able to do it myself.
+Had to give our struct a trait to check the validity of the email address.
+
+The Author wants to check if our check allows for valid emails.
+This spurs the conversation or, are we checking valid emails or just specific addresses?
+Thus, is striving for 100% test coverage even a worthwhile goal?
+Even if you touch every line of code with a test, you will probably never test all the allowable cases.
+
+So, we move into the realm of _property-based testing_.
+It might test more cases but won't prove our parses is correct.
+It does not exhaustively explore the input space.
+
+There's a crate called ["fake" | crates.io](https://crates.io/crates/fake).
+As of right now (14-04-2024), apparently `fake:2.9.2` relies on the `rand` crate.
+That crate is below version 1, only at 0.8.5. 
+Something about not being used by quickcheck, we will settle for `fake:~2.3`.
+The create is easy enough to use actually.
+
+There are two mainstream options for _property-based testing_:
++ `quickcheck`
++ `proptest`
+
+We are looking into `quickcheck`.
+It has an `Arbitrary` trait we will implement to make our email validation tests compatible with the crate.
+
+```bash
+cargo add --dev quickcheck@0.9.2
+cargo add --dev quickcheck_macros
+```
+
+Don't include the version actually.
+The book suggests versions under 1.0, but, maybe recently, they are now at 1.0.
+Of course, the API has changed and I cannot get it to work correctly as is. 
+So, downgrading gives us passing results.
+
+Maybe a homework assignment, get that working correctly with updated versions. 
+
+Just did some serious debugging because the "returns 200 test keeps failing".
+The `dbg!()` macro is amazing for this.
+The database is returning that the value is already stored for some reason. 
+
+Hours spent debugging when I was using the ol'foot-gun...
+In the test, I was trying to configure the database with the `without_db()` method. 
+I don't know what it was doing, but it wasn't configuring a new database.
+
+We can now refactor with `TryFrom`.
+When you use `TryFrom`, it also implements `TryInto` on the other struct.
+So we do the following:
+
+```rust
+impl TryFrom<FormData> for NewSubscriber {
+    type Error = String;
+
+    fn try_from(value: FormData) -> Result<Self, Self::Error> {
+        // {...}
+    }
+}
+```
+
+And we get both:
+
+```rust
+let example_1 = NewSubscriber::try_from(form.0);
+// or...
+let example_2 = form.0.try_into();
+```

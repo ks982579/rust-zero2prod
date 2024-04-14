@@ -53,7 +53,10 @@ features = [
 ]
 
 [dev-dependencies]
+fake = "~2.3"
 reqwest = "0.12.2"
+quickcheck = "0.9.2"
+quickcheck_macros = "0.9.1"
 
 [[test]]
 name = "health_check"
