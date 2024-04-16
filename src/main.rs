@@ -6,6 +6,8 @@ use sqlx::PgPool;
 
 use zero2prod::{
     configuration::{get_configuration, Settings},
+    domain::SubscriberEmail,
+    email_client::EmailClient,
     startup::run,
     telemetry::{get_subscriber, init_subscriber},
 };
@@ -27,11 +29,21 @@ async fn main() -> Result<(), std::io::Error> {
     //     .expect("Failed to connect to Postgres.");
     let connection_pool: PgPool =
         PgPoolOptions::new().connect_lazy_with(configuration.database.with_db());
+
+    // Building `EmailClient` using `configuration`
+    let sender_email: SubscriberEmail = configuration
+        .email_client
+        .sender()
+        .expect("Invalid sender email address.");
+    let email_client: EmailClient =
+        EmailClient::new(configuration.email_client.base_url, sender_email);
+
     // Update port based on new settings
     let address = format!(
         "{}:{}",
         configuration.application.host, configuration.application.port
     );
+
     let listener: TcpListener = TcpListener::bind(address)?;
-    run(listener, connection_pool)?.await
+    run(listener, connection_pool, email_client)?.await
 }

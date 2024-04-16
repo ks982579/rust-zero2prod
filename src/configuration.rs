@@ -8,6 +8,8 @@ use sqlx::{
     ConnectOptions,
 };
 
+use crate::domain::SubscriberEmail;
+
 const APP_ENVIRONMENT: &str = "APP_ENVIRONMENT";
 
 /// Possible runtime Environments for application.
@@ -42,18 +44,31 @@ impl TryFrom<String> for Environment {
     }
 }
 
-/// 2 config values: Application Port; Database Connection;
-#[derive(serde::Deserialize, Debug)]
-pub struct Settings {
-    pub database: DatabaseSettings,
-    pub application: ApplicationSettings,
-}
-
 #[derive(serde::Deserialize, Debug)]
 pub struct ApplicationSettings {
     #[serde(deserialize_with = "deserialize_number_from_string")]
     pub port: u16,
     pub host: String,
+}
+
+#[derive(serde::Deserialize, Debug)]
+pub struct EmailClientSettings {
+    pub base_url: String,
+    pub sender_email: String,
+}
+
+impl EmailClientSettings {
+    pub fn sender(&self) -> Result<SubscriberEmail, String> {
+        SubscriberEmail::parse(self.sender_email.clone())
+    }
+}
+
+/// 2 config values: Application Port; Database Connection;
+#[derive(serde::Deserialize, Debug)]
+pub struct Settings {
+    pub database: DatabaseSettings,
+    pub application: ApplicationSettings,
+    pub email_client: EmailClientSettings,
 }
 
 /// Needs to be desearlized so it's _parent_ can also be desearlized.

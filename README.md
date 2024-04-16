@@ -1245,3 +1245,75 @@ let example_1 = NewSubscriber::try_from(form.0);
 // or...
 let example_2 = form.0.try_into();
 ```
+
+## Reject Invalid Subscriber Part II
+
+Seems like the chapter will be about sending a confirmation email.
+It is important to obtain subscriber concent. 
+European citizens legally require explicit concent from the user.
+
+The idea is we give them a link.
+The user clicks the link to confirm intent.
+We just return a `200 OK` response, no redirection.
+
+What are the steps?:
+1. User sends POST request to our `/subscription` endpoint.
+2. We add details to database, "subscriptions" table, status set to `pending_confirmation`.
+3. We generate a unique `subscription_token` and store in database linked to user ID.
+4. We send confirmation email w/link... `.../subscriptions/confirm?token=<subscription_token>`
+5. User clicks link.
+6. We return status `200 OK`
+
+We should also then activate their account.
+1. The cliked link send GET request with that token.
+2. We retrieve that token from query parameters.
+3. query the ID associated with that token
+4. Update the user's status from pending to "active"
+5. return that `200 OK`
+
+Thoughts?
+What if they click the link twice?
+What if they try to subscribe twice?
+One step at a time.
+
+Sending an email probably requires knowing **SMTP** (Simple Mail Transfer Protocol).
+It is an application-level protocol to ensure different email servers understand each other.
+
+We will use the `reqwest` crate, which was in the dev-dependencies, to connect to our email API.
+Conneting is an expensive operation.
+Using HTTPS to create new connections everytime we want to email can lead to _socket exhaustion_ under load.
+Most HTTP clients offer _connection pooling_.
+When the first requtest to a remote server is complete, the connection hangs open for some time.
+This can avoid re-establishing a connection. 
+The reqwest create initialises a connection pool _under the hood_. 
+We want to take advantage of this and reuse the same `Client` across multiple requests.
+
+To do this, we go to `startup.rs`...
+Well, the book explains 2 ways, and we side with the latter.
+See page 235 for more details yourself.
+We follow the same approach though as we did with our database connection,
+wrapping the connection in an ARC pointer and passing clones of that pointer to instances of our application.
+
+We code our way through adding an email client into starting out app.
+Because of code duplication, we also must update our tests separately, the `run()` arguments.
+
+While on the subject, we now want to test this, 
+which involves testing a REST client.
+It is good to start small, testing the `EmailClient` component in isolation. 
+The `EmailClient::send_email` must perform an HTTP request.
+To test, we need to catch our own HTTP request.
+This is where we spin up a mock server!
+
+What's another dependency?
+
+```bash
+cargo add --dev wiremock
+```
+
+Also make sure tokio has `rt` and `macros` features.
+With that, go to the `email_client.rs` file to write some unit like tests.
+
+The author suggests Postmarkapp.com, and I think it's a good recommendation.
+I have a domain through Netlify, hosting my Astro website.
+Setting up connection through Netlify with Postmarkapp was simple enough.
+Then, they send me an email on how to use their API with `cURL`.

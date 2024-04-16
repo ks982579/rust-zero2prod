@@ -6,6 +6,8 @@ use tracing_subscriber::fmt::format;
 use uuid::Uuid;
 use zero2prod::{
     configuration::{get_configuration, DatabaseSettings, Settings},
+    domain::SubscriberEmail,
+    email_client::EmailClient,
     startup::run,
     telemetry::{get_subscriber, init_subscriber},
 };
@@ -87,8 +89,17 @@ async fn spawn_app() -> TestApp {
     dbg!(&configuration);
     let connection_pool: PgPool = configure_database(&configuration.database).await;
 
+    // Building new email client
+    let sender_email: SubscriberEmail = configuration
+        .email_client
+        .sender()
+        .expect("Invalid sender email address.");
+    let email_client: EmailClient =
+        EmailClient::new(configuration.email_client.base_url, sender_email);
+
     // adding clone of connection pool
-    let server = run(listener, connection_pool.clone()).expect("Failed to bind address");
+    let server =
+        run(listener, connection_pool.clone(), email_client).expect("Failed to bind address");
     let _ = tokio::spawn(server);
     // Return the String of the whole address.
     // format!("http://127.0.0.1:{}", port)
