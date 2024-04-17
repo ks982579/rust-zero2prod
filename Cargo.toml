@@ -64,6 +64,3 @@ quickcheck_macros = "0.9.1"
 serde_json = "1"
 wiremock = "0.6.0"
 
-[[test]]
-name = "health_check"
-path = "tests/health_check.rs"

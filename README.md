@@ -1398,3 +1398,18 @@ Setting the correct time can be challenging.
 Best of luck.
 The `reqwest` crate allows for setting `Client`-wide timeout, or per request.
 We go with the former for ease.
+
+Then, section 7.3, we look at restructuring the test suite.
+Remember: **Test code is still Code**.
+It really should be:
++ Modular
++ Well-structured
++ documented
++ _maintained_
+
+
+
+
+---
+
+Ch. 8 starts on 323 / 342 and is Error Handling...
