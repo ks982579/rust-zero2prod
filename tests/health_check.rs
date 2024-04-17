@@ -20,6 +20,7 @@ use std::sync::OnceLock;
 * Use `cargo expand --test health_check` (name of file) if you are curious
 **/
 
+// A synchronization primitive that can only be written to once (allows for one trace).
 static TRACING: OnceLock<()> = OnceLock::new();
 
 /// Struct to hold app connection information.
@@ -94,8 +95,11 @@ async fn spawn_app() -> TestApp {
         .email_client
         .sender()
         .expect("Invalid sender email address.");
-    let email_client: EmailClient =
-        EmailClient::new(configuration.email_client.base_url, sender_email);
+    let email_client: EmailClient = EmailClient::new(
+        configuration.email_client.base_url,
+        sender_email,
+        configuration.email_client.authorization_token,
+    );
 
     // adding clone of connection pool
     let server =

@@ -1310,6 +1310,7 @@ What's another dependency?
 cargo add --dev wiremock
 ```
 
+The [`wiremock` | crates.io](https://crates.io/crates/wiremock) is for HTTP mocking.
 Also make sure tokio has `rt` and `macros` features.
 With that, go to the `email_client.rs` file to write some unit like tests.
 
@@ -1317,3 +1318,37 @@ The author suggests Postmarkapp.com, and I think it's a good recommendation.
 I have a domain through Netlify, hosting my Astro website.
 Setting up connection through Netlify with Postmarkapp was simple enough.
 Then, they send me an email on how to use their API with `cURL`.
+
+Now we look at Postmark API documentation.
+It is also in the email I received earlier. 
+It's good to know how to use `cURL`, so here it is...
+
+```bash
+curl "https://api.postmarkapp.com/email" \
+    -X POST \
+    -H "Accept: application/json" \
+    -H "Content-Type: application/json" \
+    -H "X-Postmark-Server-Token: <YOUR-SERVER-TOKEN>" \
+    -d '{
+    "From": "sender@example.com",
+    "To": "receiver@example.com",
+    "Subject": "Postmark test",
+    "TextBody": "Hello dear Postmark user.",
+    "HtmlBody": "<html><body><strong>Hello</strong> dear Postmark user.</body></html>",
+    "MessageStream": "outbound"
+}'
+```
+
+A successful request returns a header with status 200 OK,
+and Content-Type: application/json.
+Then the JSON with...
+
+```json
+{
+    "To": ...,
+    "SubmittedAt": ...,
+    "MessageID": ...,
+    "ErrorCode": 0,
+    "Message": "OK"
+}
+```
