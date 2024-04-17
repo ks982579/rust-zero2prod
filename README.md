@@ -1352,3 +1352,18 @@ Then the JSON with...
     "Message": "OK"
 }
 ```
+
+We hook up all the moving parts...
+Then we refine our testing. 
+The `wiremock` crate is very good.
+But we want a generic JSON validator because the JSON email body is randomized.
+We can create our own using the `wiremock::Match` trait. 
+
+We also need to add `serde_json` specifically. 
+I think it has many methods for converting Rust to JSON,
+other than serde's derived macros.
+You can also import the handy `json!({...})` macro if needed.
+
+There's also an interesting feature for serde.
+You can tell it how to rename field names using an attribute macro.
+Something like, `#[serde(rename_all = "PascalCase")]`.

@@ -13,6 +13,7 @@ pub struct EmailClient {
 }
 
 #[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "PascalCase")]
 struct SendEmailRequest {
     from: String,
     to: String,
@@ -78,14 +79,38 @@ mod tests {
         Fake, Faker,
     };
     use secrecy::Secret;
+    use validator::ValidateRequired;
     // use wiremock::matchers::any;
     use wiremock::{
         matchers::{header, header_exists, method, path},
-        Mock, MockServer, ResponseTemplate,
+        Mock, MockServer, Request, ResponseTemplate,
     };
 
+    // Making test specific tools
+    struct SendEmailBodyMatcher;
+
+    impl wiremock::Match for SendEmailBodyMatcher {
+        fn matches(&self, request: &Request) -> bool {
+            //unimplemented!();
+            // Try parse body as JSON
+            // `from_slice()` parses from bytes, which is what HTTP request is
+            let result: Result<serde_json::Value, _> = serde_json::from_slice(&request.body);
+            if let Ok(body) = result {
+                // Check fields are populated w/out checking value
+                body.get("From").is_some()
+                    && body.get("To").is_some()
+                    && body.get("Subject").is_some()
+                    && body.get("HtmlBody").is_some()
+                    && body.get("TextBody").is_some()
+            } else {
+                // Fails if not maching
+                false
+            }
+        }
+    }
+
     #[tokio::test]
-    async fn send_email_fires_request_to_base_url() {
+    async fn send_email_sends_the_expected_request() {
         // Arrange
         // `MockServer` is HTTP server
         let mock_server: MockServer = MockServer::start().await;
@@ -100,6 +125,8 @@ mod tests {
             .and(header("Content-Type", "application/json"))
             .and(path("/email"))
             .and(method("POST"))
+            // Insert Custom Matcher!
+            .and(SendEmailBodyMatcher)
             .respond_with(ResponseTemplate::new(200))
             // (1..) for at least one request, or (1..=3) for 1 to 3 requests...
             .expect(1)
