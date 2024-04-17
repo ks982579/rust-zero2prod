@@ -1367,3 +1367,34 @@ You can also import the handy `json!({...})` macro if needed.
 There's also an interesting feature for serde.
 You can tell it how to rename field names using an attribute macro.
 Something like, `#[serde(rename_all = "PascalCase")]`.
+
+After getting the test to work, we look at improvements, which Rust should be good with.
+We zoom in on how we create many strings in the email request, a sure sign of waste.
+Basically, each field allocates a bunch of new memory to stre a cloned `String`. 
+It would be more efficient to reference existing data without additional allocation.
+We can use the `&str`, which is just a pointer to a memory buffer owned by something else.
+
+Why didn't we start with that?
+Storing a reference in a struct requires a _lifetime_ parameter.
+Not the end of the world, just tells the compiler the reference will be alive for the duration of the struct.
+This prevents pointers that point to... nothing. 
+I think called null/garbage pointers. 
+
+We set up a test to ensure the request is sent ok.
+Then a test that errors if a bad response is received.
+If the response is 500, the default `reqwest::Client` still says `Ok(())`.
+We need to add the method `error_for_status()?` to return the error on bad statuses.
+
+Then, we look at timeout issues.
+Very important because if the server begins to hang, requests might build up!
+We don't _hang-up_ on the server, so the connection is busy.
+When we send an email we open a new connection.
+If the server doesn't recover quickly enough, and connections remain open,
+we could end up with socket exhaustion/performance degradation.
+
+Rule of thumb is for all IO operations, always set a timeout!
+
+Setting the correct time can be challenging.
+Best of luck.
+The `reqwest` crate allows for setting `Client`-wide timeout, or per request.
+We go with the former for ease.

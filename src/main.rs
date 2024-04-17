@@ -35,10 +35,12 @@ async fn main() -> Result<(), std::io::Error> {
         .email_client
         .sender()
         .expect("Invalid sender email address.");
+    let timeout = configuration.email_client.timeout();
     let email_client: EmailClient = EmailClient::new(
         configuration.email_client.base_url,
         sender_email,
         configuration.email_client.authorization_token,
+        timeout,
     );
 
     // Update port based on new settings

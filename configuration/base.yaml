@@ -10,3 +10,4 @@ email_client:
   base_url: "localhost"
   sender_email: "test@example.com"
   authorization_token: "123-45-6789"
+  timeout_milliseconds: 10000
