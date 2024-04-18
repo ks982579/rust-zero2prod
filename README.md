@@ -1415,6 +1415,9 @@ It's code smells, we had to update our email stuff twice because code duplicatio
 For testing, we bind a random port in the test setup.
 But our new `build()` function also binds a port in it.
 We need to somehow pass in port 0 to randomize, but also track the port for later use.
+We also pull out some other logic so things are less duplicated.
+
+We can now look back to 
 
 ---
 
