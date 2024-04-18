@@ -1417,7 +1417,42 @@ But our new `build()` function also binds a port in it.
 We need to somehow pass in port 0 to randomize, but also track the port for later use.
 We also pull out some other logic so things are less duplicated.
 
-We can now look back to 
+We can now look back to the mission of sending a confirmation email.
+The book explains some of the details around what needs be accomplished around p. 274.
+But first, a discussion on **Zero Downtime Deployments**.
+Commercially, you might strike a "Service Level Agreement" (SLA), 
+which is a contractual obligation to guarantee a certain level of reliability. 
+Interesting to note, 99.99% reliability is roughly only 52 minutes of downtime per year.
+Basically, if a release triggers a small outage, you cannot release multiple times per day.
+
+The "health-check" endpoint is actually good for **self-healing** applications.
+There are also several deployment strategies.
+The niave deployment is just... shut it down and reboot with updated version.
+**Rolling Updates** involve a _load-balancer_ to introduce nodes casually. 
+DigitalOcean is _probably_ relying on Rolling Updates.
+
+This goes into Database schema.
+When updates are rolled out, you may have old and new versions communicating with the same database.
+Well, they are...
+But what if that database schema changes, like adding a new table for `subscription_tokens`?
+If new fields are implemented as `NOT NULL`, then old versions of product cannot create new records.
+And if we deploy before we migrate, the product tries to make entries not supported.
+This means... we need a multi-step approach.
+
+And so we begin by creating a new column...
+
+```bash
+sqlx migrate add add_status_to_subscriotions
+```
+
+We then add the SQL code.
+Run against local database.
+
+```bash
+SKIP_DOCKER=true ./scripts/init_db.sh
+```
+
+p. 299 7.6.4.2
 
 ---
 
