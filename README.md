@@ -1407,8 +1407,14 @@ It really should be:
 + documented
 + _maintained_
 
+We have a look at the test logic for `spawn_app()`.
+We know it is similar to the `main()` function.
+It's code smells, we had to update our email stuff twice because code duplication.
 
 
+For testing, we bind a random port in the test setup.
+But our new `build()` function also binds a port in it.
+We need to somehow pass in port 0 to randomize, but also track the port for later use.
 
 ---
 
