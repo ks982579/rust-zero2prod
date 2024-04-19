@@ -59,6 +59,7 @@ features = [
 
 [dev-dependencies]
 fake = "~2.3"
+linkify = "0.10.0"
 quickcheck = "0.9.2"
 quickcheck_macros = "0.9.1"
 serde_json = "1"

@@ -22,6 +22,16 @@ async fn subscribe_returns_200_for_valid_form_data() {
     //     .expect("Failed to connect to Postgres");
     let body: &str = "name=le%20guin&email=ursula_le_guin%40example.com";
 
+    // To get test passing, must send email as well.
+    // This is the pretent PostMark endpoint, returning 200 OK
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        // book does not include this, probably because test isn't meant for email
+        // .expect(1)
+        .mount(&test_app.email_server)
+        .await;
+
     // Act
     let response: Response = test_app.post_subscriptions(body.into()).await;
     dbg!(&response);
@@ -112,4 +122,42 @@ async fn subscribe_sends_a_confirmation_email_for_valid_data() {
 
     // Assert
     // Mock asserts on drop
+}
+
+#[tokio::test]
+async fn subscribe_sends_a_confirmation_email_with_a_link() {
+    // Arrange
+    let app = spawn_app().await;
+    let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
+
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        // No exception because focus on checking for link
+        .mount(&app.email_server)
+        .await;
+
+    // Act
+    app.post_subscriptions(body.into()).await;
+
+    // Assert
+    // Get first intercepted request
+    let email_request = &app.email_server.received_requests().await.unwrap()[0];
+    // Parse body as JSON, use `from_slice()` because raw bytes
+    let body: serde_json::Value = serde_json::from_slice(&email_request.body).unwrap();
+
+    // Extract LINK
+    let get_link = |s: &str| {
+        let links: Vec<_> = linkify::LinkFinder::new()
+            .links(s)
+            .filter(|l| *l.kind() == linkify::LinkKind::Url)
+            .collect();
+        assert_eq!(links.len(), 1);
+        links[0].as_str().to_owned()
+    };
+    let html_link = get_link(&body["HtmlBody"].as_str().unwrap());
+    let text_link = get_link(&body["TextBody"].as_str().unwrap());
+
+    // Links should be identical...
+    assert_eq!(html_link, text_link);
 }

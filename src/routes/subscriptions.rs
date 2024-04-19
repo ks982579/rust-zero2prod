@@ -6,7 +6,10 @@ use sqlx::PgPool;
 use unicode_segmentation::UnicodeSegmentation;
 use uuid::Uuid;
 
-use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberName};
+use crate::{
+    domain::{NewSubscriber, SubscriberEmail, SubscriberName},
+    email_client::EmailClient,
+};
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
@@ -80,7 +83,7 @@ pub fn parse_subscriber(form: FormData) -> Result<NewSubscriber, String> {
 #[tracing::instrument(
     // specify message associated to span - default = function_name
     name = "Adding a new subscriber",
-    skip(form, pool),
+    skip(form, pool, email_client),
     fields(
         subscriber_email = %form.email,
         subscriber_name = %form.name,
@@ -90,6 +93,7 @@ pub async fn subscribe(
     form: web::Form<FormData>,
     // recieving connection from application state!
     pool: web::Data<PgPool>,
+    email_client: web::Data<EmailClient>,
 ) -> HttpResponse {
     /* ------------------- Handled in Macro ------------------
     // Generate random unique identifier
@@ -123,9 +127,32 @@ pub async fn subscribe(
                 request_id
             );
             ------------------------------------------------ */
+            let confirmation_link = "https://fake-domain.com/subscriptions/confirm";
+            // The book does it slightly differently...
+            // Send useless email ATM ignoring email delivery errors.
+            if email_client
+                .send_email(
+                    new_subscriber.email,
+                    &format!("Hi {},", new_subscriber.name.inner_ref()),
+                    // HTML email (if supported)
+                    &format!(
+                        "Welcome to our newletter!<br/> \
+                        Click <a href=\"{}\"</a> to confirm your subscription.",
+                        confirmation_link
+                    ),
+                    &format!(
+                        "Welcome to our newletter!\nPlease visit {} to confirm your subscription.",
+                        confirmation_link
+                    ),
+                )
+                .await
+                .is_err()
+            {
+                return HttpResponse::InternalServerError().finish();
+            }
             HttpResponse::Ok().finish()
         }
-        Err(e) => {
+        Err(_) => {
             // dbg!(e);
             // Note using std::fmt::Debug format for error
             // error log falls outside query_span
