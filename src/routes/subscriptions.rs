@@ -126,7 +126,7 @@ pub async fn subscribe(
             HttpResponse::Ok().finish()
         }
         Err(e) => {
-            dbg!(e);
+            // dbg!(e);
             // Note using std::fmt::Debug format for error
             // error log falls outside query_span
             // tracing::error!("Failed to execute query: {:?}", e);

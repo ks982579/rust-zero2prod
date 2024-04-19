@@ -1452,8 +1452,37 @@ Run against local database.
 SKIP_DOCKER=true ./scripts/init_db.sh
 ```
 
-p. 299 7.6.4.2
+Trying to get the updates to build.
+Had to run `cargo sqlx prepare` to update the offline database cache. 
+Migrated to production again and pushed code to start deployment another few times. 
+I actually wonder if the app is connected to the database on DigitalOcean... I don't remember.
+I believe that is in the `spec.yaml` file and why many keys are scoped to `RUN_TIME`.
+
+### 7.7 - sending confirmation email
+
+p. 282 / 301
+
+Now we dive into a test-driven development by trying out _red-gree-refactor_ loop.
 
 ---
 
 Ch. 8 starts on 323 / 342 and is Error Handling...
+
+
+---
+
+## Ch. 9 - Niave Newsletter Deliver
+
+Starts p. 361 / 380
+
+---
+
+## Ch. 10 - Securing API
+
+Starts p. 387 / 406 and is over 100 pages long...
+
+---
+
+## Ch. 11 - Fault-tolerant Workflows
+
+Starts on p. 525 / 544
