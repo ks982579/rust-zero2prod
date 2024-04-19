@@ -38,7 +38,7 @@ pub async fn insert_subscriber(
     sqlx::query!(
         r#"
         INSERT INTO subscriptions (id, email, name, subscribed_at, status)
-        VALUES ($1, $2, $3, $4, 'confirmed')
+        VALUES ($1, $2, $3, $4, 'pending_confirmation')
         "#,
         Uuid::new_v4(),
         new_subscriber.email.as_ref(),
@@ -74,6 +74,30 @@ pub fn parse_subscriber(form: FormData) -> Result<NewSubscriber, String> {
     let name = SubscriberName::parse(form.name)?;
     let email = SubscriberEmail::parse(form.email)?;
     Ok(NewSubscriber { email, name })
+}
+
+/// Sending confirmation email when new user registers.
+#[tracing::instrument(name = "Send a confirmation email to new subscriber.", skip_all)]
+pub async fn send_confirmation_email(
+    email_client: &EmailClient,
+    new_subscriber: NewSubscriber,
+) -> Result<(), reqwest::Error> {
+    let confirmation_link = "https://fake-domain.com/subscriptions/confirm";
+    // The book does it slightly differently...
+    // Send useless email ATM ignoring email delivery errors.
+    let greeting = format!("Hi {},", new_subscriber.name.inner_ref());
+    let plain_body = format!(
+        "Welcome to our newletter!\nPlease visit {} to confirm your subscription.",
+        confirmation_link
+    );
+    let html_body = format!(
+        "Welcome to our newletter!<br/> \
+        Click <a href=\"{}\"</a> to confirm your subscription.",
+        confirmation_link
+    );
+    email_client
+        .send_email(new_subscriber.email, &greeting, &html_body, &plain_body)
+        .await
 }
 
 /// Actix-Web calls Form::from_request() on our arguments.
@@ -127,24 +151,7 @@ pub async fn subscribe(
                 request_id
             );
             ------------------------------------------------ */
-            let confirmation_link = "https://fake-domain.com/subscriptions/confirm";
-            // The book does it slightly differently...
-            // Send useless email ATM ignoring email delivery errors.
-            if email_client
-                .send_email(
-                    new_subscriber.email,
-                    &format!("Hi {},", new_subscriber.name.inner_ref()),
-                    // HTML email (if supported)
-                    &format!(
-                        "Welcome to our newletter!<br/> \
-                        Click <a href=\"{}\"</a> to confirm your subscription.",
-                        confirmation_link
-                    ),
-                    &format!(
-                        "Welcome to our newletter!\nPlease visit {} to confirm your subscription.",
-                        confirmation_link
-                    ),
-                )
+            if send_confirmation_email(&email_client, new_subscriber)
                 .await
                 .is_err()
             {

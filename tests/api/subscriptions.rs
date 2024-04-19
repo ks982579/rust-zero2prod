@@ -8,7 +8,7 @@ use wiremock::{
 };
 
 #[tokio::test]
-async fn subscribe_returns_200_for_valid_form_data() {
+async fn subscribe_returns_a_200_for_valid_form_data() {
     // Arrange
     let test_app: TestApp = spawn_app().await;
     // We want to connect to the database also
@@ -50,6 +50,45 @@ async fn subscribe_returns_200_for_valid_form_data() {
 
     assert_eq!(saved.email, "ursula_le_guin@example.com");
     assert_eq!(saved.name, "le guin");
+}
+
+#[tokio::test]
+async fn subscibe_persists_the_new_subscriber() {
+    // Arrange
+    let test_app: TestApp = spawn_app().await;
+    let body: &str = "name=le%20guin&email=ursula_le_guin%40example.com";
+
+    // To get test passing, must send email as well.
+    // This is the pretent PostMark endpoint, returning 200 OK
+    Mock::given(path("/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        // book does not include this, probably because test isn't meant for email
+        // .expect(1)
+        .mount(&test_app.email_server)
+        .await;
+
+    // Act
+    let response: Response = test_app.post_subscriptions(body.into()).await;
+    dbg!(&response);
+
+    // Assert
+    /*
+     * The test above checks the response.
+     * This test is for checking the data is in the database.
+     * */
+    // We add now the response!
+    // The query! macro verifies the returned struct is valid at run time.
+    // it returns an anonymous record type and needs the DATABASE_URL \
+    // to verify with, which must be supplied in the `.env` file.
+    let saved = sqlx::query!("SELECT email, name, status FROM subscriptions",)
+        .fetch_one(&test_app.db_pool)
+        .await
+        .expect("Failed to fetch saved subscription.");
+
+    assert_eq!(saved.email, "ursula_le_guin@example.com");
+    assert_eq!(saved.name, "le guin");
+    assert_eq!(saved.status, "pending_confirmation");
 }
 
 /// You need good error messages with parameterised tests to know where assertion failed.
