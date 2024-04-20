@@ -1465,6 +1465,8 @@ p. 282 / 301
 Now we dive into a test-driven development by trying out _red-gree-refactor_ loop.
 We also will use [`linkify` | crates.io](https://crates.io/crates/linkify) in our testing. 
 
+p. 296 / 315 - in subscriptions_confirm.rs bottom of page
+
 
 ---
 

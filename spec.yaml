@@ -26,6 +26,10 @@ services:
       - path: /
     # Mostly follows what is set in base.yaml
     envs:
+      # APP_URL is DO's variable
+      - key: APP_DATABASE__BASE_URL
+        scope: RUN_TIME
+        value: ${APP_URL}
       - key: APP_DATABASE__USERNAME
         scope: RUN_TIME
         value: ${newsletter.USERNAME}
