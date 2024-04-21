@@ -1491,6 +1491,12 @@ For testing, we need to also know the port.
 But the port we use is $0$ to make it random, what do we do?
 Basically, load up any information you need for the tests into the `TestApp` struct.
 
+In this more intenst development cycle of red-green testing,
+A theme seems to be write a red test,
+make the test green,
+then refactor if necessary.
+We have hard-coded in a token for the moment on the endpoint to get our test to pass.
+
 ---
 
 Ch. 8 starts on 323 / 342 and is Error Handling...
