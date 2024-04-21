@@ -1,5 +1,9 @@
 use actix_web::{web, HttpResponse};
 use chrono::Utc;
+use rand::{
+    distributions::{Alphanumeric, DistString},
+    thread_rng, Rng,
+};
 // use sqlx::PgConnection;
 use sqlx::PgPool;
 // use tracing::Instrument;
@@ -35,13 +39,14 @@ impl TryFrom<FormData> for NewSubscriber {
 pub async fn insert_subscriber(
     pool: &PgPool,
     new_subscriber: &NewSubscriber,
-) -> Result<(), sqlx::Error> {
+) -> Result<Uuid, sqlx::Error> {
+    let subscriber_id = Uuid::new_v4();
     sqlx::query!(
         r#"
         INSERT INTO subscriptions (id, email, name, subscribed_at, status)
         VALUES ($1, $2, $3, $4, 'pending_confirmation')
         "#,
-        Uuid::new_v4(),
+        subscriber_id,
         new_subscriber.email.as_ref(),
         new_subscriber.name.as_ref(),
         Utc::now()
@@ -53,7 +58,7 @@ pub async fn insert_subscriber(
         e
         // Using `?` will return early if failed with `sqlx::Error`
     })?;
-    Ok(())
+    Ok(subscriber_id)
 }
 
 /// Returns `true` if input satisfies all our validation constraints
@@ -83,11 +88,12 @@ pub async fn send_confirmation_email(
     email_client: &EmailClient,
     new_subscriber: NewSubscriber,
     base_url: &str,
+    subscription_token: &str,
 ) -> Result<(), reqwest::Error> {
     let confirmation_link = format! {
-        "{}/subscriptions/confirm?{}",
+        "{}/subscriptions/confirm?subscription_token={}",
         base_url,
-        "subscription_token=mytoken"
+        subscription_token
     };
     // The book does it slightly differently...
     // Send useless email ATM ignoring email delivery errors.
@@ -104,6 +110,27 @@ pub async fn send_confirmation_email(
     email_client
         .send_email(new_subscriber.email, &greeting, &html_body, &plain_body)
         .await
+}
+
+#[tracing::instrument(name = "Store subscription token in the database", skip_all)]
+pub async fn store_token(
+    pool: &PgPool,
+    subscriber_id: Uuid,
+    subscription_token: &str,
+) -> Result<(), sqlx::Error> {
+    sqlx::query!(
+        r#"INSERT INTO subscription_tokens (subscription_token, subscriber_id)
+    VALUES ($1, $2)"#,
+        subscription_token,
+        subscriber_id,
+    )
+    .execute(pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to execute query: {:?}", e);
+        e
+    })?;
+    Ok(())
 }
 
 /// Actix-Web calls Form::from_request() on our arguments.
@@ -149,29 +176,40 @@ pub async fn subscribe(
     };
     // This returns a Result that must be used!
     // the book passes in `&pool` which might have some hidden dereferencing.
-    match insert_subscriber(pool.get_ref(), &new_subscriber).await {
-        Ok(_) => {
-            /* --------------------------------------------------
-            * instrument and query_span remove need for log
-            tracing::info!(
-                "request_id {} - New Subscriber details have been saved.",
-                request_id
-            );
-            ------------------------------------------------ */
-            if send_confirmation_email(&email_client, new_subscriber, &base_url.0)
-                .await
-                .is_err()
-            {
-                return HttpResponse::InternalServerError().finish();
-            }
-            HttpResponse::Ok().finish()
-        }
+    let subscriber_id = match insert_subscriber(pool.get_ref(), &new_subscriber).await {
+        Ok(subscriber_id) => subscriber_id,
         Err(_) => {
             // dbg!(e);
             // Note using std::fmt::Debug format for error
             // error log falls outside query_span
             // tracing::error!("Failed to execute query: {:?}", e);
-            HttpResponse::InternalServerError().finish()
+            return HttpResponse::InternalServerError().finish();
         }
+    };
+    let subscription_token = generate_subscription_token();
+    if store_token(&pool, subscriber_id, &subscription_token)
+        .await
+        .is_err()
+    {
+        return HttpResponse::InternalServerError().finish();
     }
+    if send_confirmation_email(
+        &email_client,
+        new_subscriber,
+        &base_url.0,
+        &subscription_token,
+    )
+    .await
+    .is_err()
+    {
+        return HttpResponse::InternalServerError().finish();
+    }
+    HttpResponse::Ok().finish()
+}
+
+/// Generate a random 25-characters-long case-sensitive subscription token.
+fn generate_subscription_token() -> String {
+    // let mut rng = thread_rng();
+    // (0..25).map(|_| rng.sample(Alphanumeric) as char).collect()
+    Alphanumeric.sample_string(&mut rand::thread_rng(), 25)
 }

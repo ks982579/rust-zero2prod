@@ -1497,6 +1497,23 @@ make the test green,
 then refactor if necessary.
 We have hard-coded in a token for the moment on the endpoint to get our test to pass.
 
+Once we write a new test, we begin to look into dynamically setting the token.
+We want a token that is tough to guess.
+But they are single use and don't acutally grant access to protected information.
+Worst case scenario is someone gets a (possibly) unwanted newsletter subscription.
+We can use a cryptographically secure pseudo-random number generator (CSPRNG).
+We import the `rand` crate....
+
+```bash
+cargo add rand --features=std_rng
+```
+
+The book has a different approach to generating a random string of characters.
+But, following the documentation for `rand::distributions::Alphanumeric`, 
+I followed that way.
+A small issue is that we related the token to a user in a different table.
+We never fetch the user's ID though. 
+
 ---
 
 Ch. 8 starts on 323 / 342 and is Error Handling...
