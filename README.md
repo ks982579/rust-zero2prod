@@ -1465,8 +1465,31 @@ p. 282 / 301
 Now we dive into a test-driven development by trying out _red-gree-refactor_ loop.
 We also will use [`linkify` | crates.io](https://crates.io/crates/linkify) in our testing. 
 
-p. 296 / 315 - in subscriptions_confirm.rs bottom of page
+We are adding another environment variable to the `spec.yaml`.
+Since we updated this file, we must apply changes to DigitalOcean.
+Grab the _app identifier_ and update with:
 
+```bash
+doctl apps list --format ID
+# prints <$APP_ID>
+doctl apps update <$APP_ID> --spec spec.yaml
+```
+
+Now we register the value in the application context,
+a process to be familiar with!
++ Go to `startups.rs`
++ add parameter into the `server = run(...)` function.
+  + This creates errors as the function only takes 3 parameters but we now supply 4.
++ Create a struct wrapper (in needed) since actix-web context is type-based
+  + Using multiple `String` types opens us to conflicts
++ add `base_url: String` as a parameter in `fn run(...)`
++ create context with `let base_url = Data::new(ApplicationBaseUrl(base_url))`
++ Add to app like `App::new()...app_data(base_url.clone())`
+
+For production, the base url is OK.
+For testing, we need to also know the port. 
+But the port we use is $0$ to make it random, what do we do?
+Basically, load up any information you need for the tests into the `TestApp` struct.
 
 ---
 

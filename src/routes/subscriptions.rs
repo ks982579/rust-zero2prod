@@ -9,6 +9,7 @@ use uuid::Uuid;
 use crate::{
     domain::{NewSubscriber, SubscriberEmail, SubscriberName},
     email_client::EmailClient,
+    startup::ApplicationBaseUrl,
 };
 
 #[derive(serde::Deserialize)]
@@ -81,8 +82,13 @@ pub fn parse_subscriber(form: FormData) -> Result<NewSubscriber, String> {
 pub async fn send_confirmation_email(
     email_client: &EmailClient,
     new_subscriber: NewSubscriber,
+    base_url: &str,
 ) -> Result<(), reqwest::Error> {
-    let confirmation_link = "https://fake-domain.com/subscriptions/confirm";
+    let confirmation_link = format! {
+        "{}/subscriptions/confirm?{}",
+        base_url,
+        "subscription_token=mytoken"
+    };
     // The book does it slightly differently...
     // Send useless email ATM ignoring email delivery errors.
     let greeting = format!("Hi {},", new_subscriber.name.inner_ref());
@@ -107,7 +113,7 @@ pub async fn send_confirmation_email(
 #[tracing::instrument(
     // specify message associated to span - default = function_name
     name = "Adding a new subscriber",
-    skip(form, pool, email_client),
+    skip(form, pool, email_client, base_url),
     fields(
         subscriber_email = %form.email,
         subscriber_name = %form.name,
@@ -118,6 +124,7 @@ pub async fn subscribe(
     // recieving connection from application state!
     pool: web::Data<PgPool>,
     email_client: web::Data<EmailClient>,
+    base_url: web::Data<ApplicationBaseUrl>,
 ) -> HttpResponse {
     /* ------------------- Handled in Macro ------------------
     // Generate random unique identifier
@@ -151,7 +158,7 @@ pub async fn subscribe(
                 request_id
             );
             ------------------------------------------------ */
-            if send_confirmation_email(&email_client, new_subscriber)
+            if send_confirmation_email(&email_client, new_subscriber, &base_url.0)
                 .await
                 .is_err()
             {

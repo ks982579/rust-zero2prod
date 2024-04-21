@@ -53,7 +53,12 @@ impl Application {
 
         let listener: TcpListener = TcpListener::bind(address)?;
         let port: u16 = listener.local_addr().unwrap().port();
-        let server: Server = run(listener, connection_pool, email_client)?;
+        let server: Server = run(
+            listener,
+            connection_pool,
+            email_client,
+            configuration.application.base_url,
+        )?;
 
         // And we store information in Application struct
         Ok(Self { port, server })
@@ -73,6 +78,11 @@ pub fn get_connection_pool(configuration: &DatabaseSettings) -> PgPool {
     PgPoolOptions::new().connect_lazy_with(configuration.with_db())
 }
 
+// We need a wrapper to retrieve URL from `subscribe` handler.
+// Retrieval from context in actix-web is type-based
+// using raw `String` exposes us to conflicts - right...
+pub struct ApplicationBaseUrl(pub String);
+
 // removed the `async` from this function.
 // adding the `address: &str` parameter to allow for dynamic connections
 // Just kidding, we need a TcpListener so we can track the port.
@@ -80,10 +90,12 @@ pub fn run(
     listener: TcpListener,
     db_pool: PgPool,
     email_client: EmailClient,
+    base_url: String,
 ) -> Result<Server, std::io::Error> {
     // Wrap the connection in Smart Pointer!
     let db_pool: web::Data<PgPool> = web::Data::new(db_pool);
     let email_client: web::Data<EmailClient> = web::Data::new(email_client);
+    let base_url: web::Data<ApplicationBaseUrl> = web::Data::new(ApplicationBaseUrl(base_url));
     // HttpServer for binding to TCP socket, maximum number of connections
     // allowing transport layer security, and more.
     let server: Server = HttpServer::new(move || {
@@ -98,6 +110,7 @@ pub fn run(
             // connection must be cloneable for every copy of App returned...
             .app_data(db_pool.clone())
             .app_data(email_client.clone())
+            .app_data(base_url.clone())
     })
     //.bind("127.0.0.1:8000")?
     // .bind(address)? // just kidding, we need to listen, not bind
