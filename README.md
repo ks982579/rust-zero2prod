@@ -1514,6 +1514,26 @@ I followed that way.
 A small issue is that we related the token to a user in a different table.
 We never fetch the user's ID though. 
 
+### 7.8 Database Transactions
+
+We finally have something done, but  now we must consider what happens if...
+We have an API call that makes 2 queries to the database. 
+What happens if the applications crashes between queries?
+You can end up with a subscriber without a token, and that would require intervention.
+
+A database **transaction** groups related operations into a single unit of work.
+All operations in a transaction either succeed or fail together. 
+The book continues on page 315 about PostGres database transaction syntax.
+Luckily, `sqlx` provides an API for transactions usings the `pool.begin().await` method.
+Then, when we passed the `pool.get_ref()` into functions, we pass in the mutable transactions.
+However, it's a different struct, so some amendments will be required.
+
+The idea of the transaction is it has two methods, `Transaction::{rollback, commit}`.
+When the transaction is droped, it will try to rollback if not committed.
+We pass in mutable references so we can commit the complete transaction before ending the function.
+And if there's a crash, the function drops the transaction before it is committed and that rolls-back the queries. 
+
+
 ---
 
 Ch. 8 starts on 323 / 342 and is Error Handling...
