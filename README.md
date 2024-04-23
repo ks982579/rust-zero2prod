@@ -1533,11 +1533,124 @@ When the transaction is droped, it will try to rollback if not committed.
 We pass in mutable references so we can commit the complete transaction before ending the function.
 And if there's a crash, the function drops the transaction before it is committed and that rolls-back the queries. 
 
+Finally, The summary of the chapter!!!
+The auther suggests going off and exploring on your own.
+I have another project after this so I'll list the ideas, but no time to implement:
++ What about trying to subscribe twice?
++ Clicks on confirmation email twice?
++ What if subscription token is _well-formatted_ but non-existent?
++ Validate incoming token!
+  + Code currently passes in raw user input into SQL query but `sqlx` has our back.
++ Proper templating solution for emails? (`tera`)
++ etc...
 
 ---
 
-Ch. 8 starts on 323 / 342 and is Error Handling...
+## Ch. 8 - Error Handling
 
+Starts on 323 / 342 and is Error Handling...
+
+### 8.1 - Purpose of Errors?
+
+The author looks at `src::routes::subscriptions::store_token`,
+which returns a `Result<(), sqlx::Error>`.
+It attempts to store a token into the database.
+However, the `execute()` method is a _fallible_ operation. 
+The method returns a `Result` so the caller of the method **can _react_ accordingly**.
+
+Knowing how to react is difficutl when there are so many different ways something can fail.
+The author shows a massive list of `Error` enum variants from the `sqlx` crate.
+Errors should also contain enough **context** to produce a report for the developer.
+They need to troubleshoot problems. 
+And that is why we use the `...map_err(|e| {tracing::error!(...)})` pattern to log the errors.
+
+Users of an application firstly, expect the application to not fail.
+But, secondly, if/when it does, they would expect some kind or signal or message that it has failed.
+We have been sending `HttpResponse::InternalServerError().finish()` signals. 
+Note, the reponse body of these errors is empty by design.
+Most users wouldn't be able to determine why our application is failing anyway.
+
+But, even in `src::domain::subscriber_email::SubscriberEmail::parse()`,
+we don't _propagate_ the error message to the user. 
+We create an error message and send the `Result`.
+The function performs a match,
+and if it is `Err(_)`, 
+we just send `HttpResponse::BadRequest().finish()`,
+which has an empty body.
+This is a very poor error because the user wouldn't understand why the call failed.
+
+2 purposes of errors:
++ Control flow
++ Reporting
+
+Location of Errors:
++ Internal (functions in our application calling other functions in our application)
++ At the edge (API request our application fails to fulfill)
+
+Be careful with how much information you give to a user.
+They should only be given what is required to adjust their behaviour.
+
+### 8.2 Error reporting for operators
+
+We apparently are going to test our logs by sabotaging our database in a test.
+We drop a column?
+In my current version of the book... 20240128, 
+The author left a footnote that they look forward to revisiting the chapter when better tooling becomes available.
+You would ideally write tests to verify the properties of the logs emitted by the application.
+
+The author suggest running the following
+
+```bash
+export RUST_LOG="sqlx=error,info"
+export TEST_LOG=true
+cargo test subscribe_fails_if_there_is_a_fatal_database_error | bunyan
+```
+
+Basically, we see there's a failure, but `expection.details` and `exception.message` are both empty.
+To understand our poor log records, we start with the "subsriptions" endpoint.
+We find were the error would generate and want to use `actix_web::Error`.
+Check out the docs for more information.
+
+The [documentation](https://actix.rs/docs/errors#error-logging-1) kind of shows `actix_web::error`, lowercase.
+The [actix-web | docs.rs](https://docs.rs/actix-web/4.0.1/actix_web/error/struct.Error.html) documentation
+shows that `error` is the module and `Error` is the struct. 
+I think the idea is to implement `actix_web::ResponseError` trait on the `sqlx::Error` enum. 
+However, Rust has an _orphan rule_:
+it is forbidden to implement foreign trait for a foreign type.
+It's also just the wrong approach. 
+The compiler will suggest wrapping the original error.
+
+This is great but our trait requires `Debug` and `Display` traits.
+The Debug one is good and most / all public types should implement this.
+Display is tough because most types don't implement it and it cannot be _derived_.
+Yes, then were an `sqlx::Error` is emitted, we wrap in our wrapper for returning.
+Then, that error type implements the `ResponseError` trait,
+Allowing Actix-Web to handle it. 
+Looks like the `exception.details = Debug` and `exception.message = Display`
+
+We then look at what an error in Rust really looks like. 
+It's a trait that implements Debug and Display. 
+In `Result<T, E>` the error type can be anything.
+But making it an actually Error type _semantically_ marks our type as an error. 
+There's also a "Rust Error Handling Working Group".
+
+Rust error trait:
+
+```Rust
+pub trait Error: Debug + Display {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        None
+    }
+}
+```
+
+What is the return type of `source`?
+The `dyn Error` is a trait object, we only know it implements the error trait.
+They help achieve polymorphism but incur the dynamic dispatch runtime cost.
+
+Now, we implement the `Error` trait on our wrapper.
+
+Top of p. 340 / 359 - about to implement errorchainfmt
 
 ---
 
