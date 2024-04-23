@@ -22,7 +22,8 @@ pub struct StoreTokenError(sqlx::Error);
 impl std::fmt::Debug for StoreTokenError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // This struct has text, and the one it wraps also does.
-        write!(f, "{}\nCaused by:\n\t{}", self, self.0)
+        // write!(f, "{}\nCaused by:\n\t{}", self, self.0)
+        error_chain_fmt(self, f)
     }
 }
 
@@ -246,4 +247,20 @@ fn generate_subscription_token() -> String {
     // let mut rng = thread_rng();
     // (0..25).map(|_| rng.sample(Alphanumeric) as char).collect()
     Alphanumeric.sample_string(&mut rand::thread_rng(), 25)
+}
+
+/// Iterators over whole chain of errors
+/// Can be used in `Debug` implementation for Error types!
+fn error_chain_fmt(
+    e: &impl std::error::Error,
+    f: &mut std::fmt::Formatter<'_>,
+) -> std::fmt::Result {
+    // This writes into a _buffer_
+    writeln!(f, "{}\n", e)?;
+    let mut current = e.source();
+    while let Some(cause) = current {
+        writeln!(f, "Caused by:\n\t{}", cause)?;
+        current = cause.source();
+    }
+    Ok(())
 }

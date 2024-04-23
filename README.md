@@ -1650,7 +1650,8 @@ They help achieve polymorphism but incur the dynamic dispatch runtime cost.
 
 Now, we implement the `Error` trait on our wrapper.
 
-Top of p. 340 / 359 - about to implement errorchainfmt
+We have a nice solution, created a `error_chain_fmt()` function,
+but we can do better (I guess).
 
 ---
 
