@@ -238,19 +238,26 @@ pub async fn subscribe(
     ----------------------------------------------------- */
     // `form.0` gives access to `FormData`, since `web::Form` is just a wrapper.
     // Can also try `NewSubscriber::try_from(form.0)`.
-    let new_subscriber: NewSubscriber = match form.0.try_into() {
+    let new_subscriber: NewSubscriber = form.0.try_into()?;
+    /*  // because of ?, we can remove these for now
         Ok(form) => form,
         Err(_) => return Ok(HttpResponse::BadRequest().finish()),
     };
+    */
     // Adding transaction to protect database.
     // We create in parent function and pass down
-    let mut transaction = match pool.begin().await {
+    let mut transaction = pool.begin().await?;
+    /* Because this emits sqlx::Error, and that now implements From
+    * we have simple way to transition
         Ok(transaction) => transaction,
         Err(_) => return Ok(HttpResponse::InternalServerError().finish()),
     };
+    */
     // This returns a Result that must be used!
     // the book passes in `&pool` which might have some hidden dereferencing.
     // let subscriber_id = match insert_subscriber(pool.get_ref(), &new_subscriber).await {
+    let subscriber_id = insert_subscriber(&mut transaction, &new_subscriber).await?;
+    /* Old way
     let subscriber_id = match insert_subscriber(&mut transaction, &new_subscriber).await {
         Ok(subscriber_id) => subscriber_id,
         Err(_) => {
@@ -261,25 +268,20 @@ pub async fn subscribe(
             return Ok(HttpResponse::InternalServerError().finish());
         }
     };
+    */
     let subscription_token = generate_subscription_token();
     store_token(&mut transaction, subscriber_id, &subscription_token).await?;
 
     // Commit Database transaction (queries)
-    if transaction.commit().await.is_err() {
-        return Ok(HttpResponse::InternalServerError().finish());
-    }
+    transaction.commit().await?;
 
-    if send_confirmation_email(
+    send_confirmation_email(
         &email_client,
         new_subscriber,
         &base_url.0,
         &subscription_token,
     )
-    .await
-    .is_err()
-    {
-        return Ok(HttpResponse::InternalServerError().finish());
-    }
+    .await?;
     Ok(HttpResponse::Ok().finish())
 }
 

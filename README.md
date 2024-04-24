@@ -1773,6 +1773,8 @@ Just create an enum for error types and we can take it from there.
 
 Suppose it is work talking about the `?` operator.
 If we implement `From<err>` for each variant, we should be able to use the `?`.
+Implementing that actually makes the code much nicer,
+but you must know exactly the returned error type of every operation to map into your enum.
 
 ---
 
