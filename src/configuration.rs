@@ -93,7 +93,7 @@ pub struct DatabaseSettings {
 impl DatabaseSettings {
     // Renamed from "connection_string"
     pub fn with_db(&self) -> PgConnectOptions {
-        let mut options: PgConnectOptions = self.without_db().database(&self.database_name);
+        let options: PgConnectOptions = self.without_db().database(&self.database_name);
         // Book takes slight different approach,
         // But `.log_statements` consumes self, and returns ``
         options.log_statements(tracing_log::log::LevelFilter::Trace)

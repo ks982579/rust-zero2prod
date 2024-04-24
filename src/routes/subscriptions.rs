@@ -1,9 +1,6 @@
-use actix_web::{web, HttpResponse, ResponseError};
+use actix_web::{http::StatusCode, web, HttpResponse, ResponseError};
 use chrono::Utc;
-use rand::{
-    distributions::{Alphanumeric, DistString},
-    thread_rng, Rng,
-};
+use rand::distributions::{Alphanumeric, DistString};
 // use sqlx::PgConnection;
 use sqlx::{Executor, PgPool, Postgres, Transaction};
 // use tracing::Instrument;
@@ -16,46 +13,96 @@ use crate::{
     startup::ApplicationBaseUrl,
 };
 
-#[derive(Debug)]
+// #[derive(Debug)] -- Custom implementation
+/*
+#[derive(thiserror::Error)]
 pub enum SubscribeError {
+    #[error("{0}")]
     ValidationError(String),
-    DatabaseError(sqlx::Error),
-    StoreTokenError(StoreTokenError),
-    SendEmailError(reqwest::Error),
+    // DatabaseError(sqlx::Error),
+    #[error("Failed to store the confirmation token for a new subscriber.")]
+    StoreTokenError(#[from] StoreTokenError),
+    #[error("Failed to send a confirmation email.")]
+    SendEmailError(#[from] reqwest::Error),
+    #[error("Failed to acquire a Postgres connection from the pool.")]
+    PoolError(#[source] sqlx::Error),
+    #[error("Failed to insert new subscriber in database.")]
+    InsertSubscriberError(#[source] sqlx::Error),
+    #[error("Failed to send a confirmation email.")]
+    TransactionCommitError(#[source] sqlx::Error),
+}
+*/
+
+#[derive(thiserror::Error)]
+pub enum SubscribeError {
+    #[error("{0}")]
+    ValidationError(String),
+    // "transparent" delegates Display's and source's implementation
+    // to the type wrapped by UnexpectedError
+    #[error(transparent)]
+    UnexpectedError(#[from] Box<dyn std::error::Error>),
 }
 
-// To use the `?` operator we need the `From<err>` trait
-impl From<reqwest::Error> for SubscribeError {
-    fn from(value: reqwest::Error) -> Self {
-        Self::SendEmailError(value)
-    }
-}
-impl From<sqlx::Error> for SubscribeError {
-    fn from(value: sqlx::Error) -> Self {
-        Self::DatabaseError(value)
-    }
-}
-impl From<StoreTokenError> for SubscribeError {
-    fn from(value: StoreTokenError) -> Self {
-        Self::StoreTokenError(value)
-    }
-}
-// Yes, even the `String`
-impl From<String> for SubscribeError {
-    fn from(value: String) -> Self {
-        Self::ValidationError(value)
+// Keeping our Bespoke implementation of `Debug`
+impl std::fmt::Debug for SubscribeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        error_chain_fmt(self, f)
     }
 }
 
+/* Should be handled by #[derive(thiserror::Error)]
 impl std::fmt::Display for SubscribeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Failed to create a new subscriber.")
+        match self {
+            SubscribeError::ValidationError(e) => write!(f, "{}", e),
+            SubscribeError::StoreTokenError(_) => {
+                write!(f, "Failed to store confirmation token for new subscriber.")
+            }
+            SubscribeError::SendEmailError(_) => {
+                write!(f, "Failed to send a confirmation email.")
+            }
+            SubscribeError::PoolError(_) => {
+                write!(f, "Failed to acquire a Postgres connection from the pool.")
+            }
+            SubscribeError::InsertSubscriberError(_) => {
+                write!(f, "Failed to insert new subscriber in database.")
+            }
+            SubscribeError::TransactionCommitError(_) => {
+                write!(
+                    f,
+                    "Failed to commit SQL transaction to store new subscriber."
+                )
+            }
+        }
+        // write!(f, "Failed to create a new subscriber.")
     }
 }
 
-impl std::error::Error for SubscribeError {}
+impl std::error::Error for SubscribeError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        // Had *self, but the dereference was not compatible with return type
+        match self {
+            // &str does not implement `Error` - We consider it the root cause
+            SubscribeError::ValidationError(_) => None,
+            // SubscribeError::DatabaseError(e) => Some(e),
+            SubscribeError::StoreTokenError(e) => Some(e),
+            SubscribeError::SendEmailError(e) => Some(e),
+            SubscribeError::PoolError(e) => Some(e),
+            SubscribeError::InsertSubscriberError(e) => Some(e),
+            SubscribeError::TransactionCommitError(e) => Some(e),
+        }
+    }
+}
+*/
 
-impl ResponseError for SubscribeError {}
+impl ResponseError for SubscribeError {
+    fn status_code(&self) -> StatusCode {
+        match *self {
+            SubscribeError::ValidationError(_) => StatusCode::BAD_REQUEST,
+            SubscribeError::UnexpectedError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+}
 
 // New error type, wrapping `sqlx::Error`
 pub struct StoreTokenError(sqlx::Error);
@@ -238,7 +285,8 @@ pub async fn subscribe(
     ----------------------------------------------------- */
     // `form.0` gives access to `FormData`, since `web::Form` is just a wrapper.
     // Can also try `NewSubscriber::try_from(form.0)`.
-    let new_subscriber: NewSubscriber = form.0.try_into()?;
+    let new_subscriber: NewSubscriber =
+        form.0.try_into().map_err(SubscribeError::ValidationError)?;
     /*  // because of ?, we can remove these for now
         Ok(form) => form,
         Err(_) => return Ok(HttpResponse::BadRequest().finish()),
@@ -246,7 +294,10 @@ pub async fn subscribe(
     */
     // Adding transaction to protect database.
     // We create in parent function and pass down
-    let mut transaction = pool.begin().await?;
+    let mut transaction = pool
+        .begin()
+        .await
+        .map_err(|e| SubscribeError::UnexpectedError(Box::new(e)))?;
     /* Because this emits sqlx::Error, and that now implements From
     * we have simple way to transition
         Ok(transaction) => transaction,
@@ -256,7 +307,9 @@ pub async fn subscribe(
     // This returns a Result that must be used!
     // the book passes in `&pool` which might have some hidden dereferencing.
     // let subscriber_id = match insert_subscriber(pool.get_ref(), &new_subscriber).await {
-    let subscriber_id = insert_subscriber(&mut transaction, &new_subscriber).await?;
+    let subscriber_id = insert_subscriber(&mut transaction, &new_subscriber)
+        .await
+        .map_err(|e| SubscribeError::UnexpectedError(Box::new(e)))?;
     /* Old way
     let subscriber_id = match insert_subscriber(&mut transaction, &new_subscriber).await {
         Ok(subscriber_id) => subscriber_id,
@@ -270,10 +323,15 @@ pub async fn subscribe(
     };
     */
     let subscription_token = generate_subscription_token();
-    store_token(&mut transaction, subscriber_id, &subscription_token).await?;
+    store_token(&mut transaction, subscriber_id, &subscription_token)
+        .await
+        .map_err(|e| SubscribeError::UnexpectedError(Box::new(e)))?;
 
     // Commit Database transaction (queries)
-    transaction.commit().await?;
+    transaction
+        .commit()
+        .await
+        .map_err(|e| SubscribeError::UnexpectedError(Box::new(e)))?;
 
     send_confirmation_email(
         &email_client,
@@ -281,7 +339,8 @@ pub async fn subscribe(
         &base_url.0,
         &subscription_token,
     )
-    .await?;
+    .await
+    .map_err(|e| SubscribeError::UnexpectedError(Box::new(e)))?;
     Ok(HttpResponse::Ok().finish())
 }
 

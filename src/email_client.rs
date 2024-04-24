@@ -56,7 +56,7 @@ impl EmailClient {
             text_body: text_content.as_ref(),
         };
         // we get a _builder_... that we turn into Response
-        let builder: Response = self
+        let _builder: Response = self
             .http_client
             .post(&url)
             // There is also `.headers()` which takes in a HashMap

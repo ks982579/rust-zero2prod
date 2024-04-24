@@ -1775,6 +1775,318 @@ Suppose it is work talking about the `?` operator.
 If we implement `From<err>` for each variant, we should be able to use the `?`.
 Implementing that actually makes the code much nicer,
 but you must know exactly the returned error type of every operation to map into your enum.
+Sure, we will also need to re-map HTTP Status codes in `subscriptions.rs`.
+The `enum` allows us to match error variants to status codes very nicely,
+as you can see (hopefully) in the code.
+
+I like how this looks:
+
+```rust
+impl ResponseError for SubscribeError {
+    fn status_code(&self) -> StatusCode {
+        match *self {
+            SubscribeError::ValidationError(_) => StatusCode::BAD_REQUEST,
+            SubscribeError::DatabaseError(_)
+            | SubscribeError::StoreTokenError(_)
+            | SubscribeError::SendEmailError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+}
+```
+
+The dereference operator isn't necessary, but is explicit in meaning.
+While on the subject, the next bit will look like:
+
+```rust
+impl std::error::Error for SubscribeError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        // Had *self, but the dereference was not compatible with return type
+        match self {
+            // &str does not implement `Error` - We consider it the root cause
+            SubscribeError::ValidationError(_) => None,
+            SubscribeError::DatabaseError(e) => Some(e),
+            SubscribeError::StoreTokenError(e) => Some(e),
+            SubscribeError::SendEmailError(e) => Some(e),
+        }
+    }
+}
+```
+
+Before moving on, you can see I did **not** dereference self here.
+The return type is a reference.
+If you dereference then the returned value will not match the return type.
+
+The logs are shaping up but each message is generic.
+For the `SubscribeError`, we can implement our own `Debug` trait that uses the `error_chain_fmt` function.
+Then, implement the `std::error::Error` trait for `SubscribeError` to give it a `source` method.
+
+What will be an issue?
+The `DatabaseError` wraps over `sqlx::Error`.
+That can be a bunch of things, from connection issues, inserting subscriber issue, committing transaction issue, etc...
+As such, we much split up our generic `DatabaseError` into different possibilities.
+Then, when an error is returned, we'll have to map it to the correct varient.
+
+Because we are mapping the one `sqlx::Error` type to 3 different variants, 
+we have to handle mapping with `().await.map_err(SubscribeError::...)` as they occur.
+This means knowing what thing returns what error.
+
+Our boilerplate code:
+
+```rust
+// #[derive(Debug)] -- Custom implementation
+pub enum SubscribeError {
+    ValidationError(String),
+    // DatabaseError(sqlx::Error),
+    StoreTokenError(StoreTokenError),
+    SendEmailError(reqwest::Error),
+    PoolError(sqlx::Error),
+    InsertSubscriberError(sqlx::Error),
+    TransactionCommitError(sqlx::Error),
+}
+
+// To use the `?` operator we need the `From<err>` trait
+impl From<reqwest::Error> for SubscribeError {
+    fn from(value: reqwest::Error) -> Self {
+        Self::SendEmailError(value)
+    }
+}
+/* We handle mapping errors in function unfortunately
+impl From<sqlx::Error> for SubscribeError {
+    fn from(value: sqlx::Error) -> Self {
+        Self::DatabaseError(value)
+    }
+}
+*/
+impl From<StoreTokenError> for SubscribeError {
+    fn from(value: StoreTokenError) -> Self {
+        Self::StoreTokenError(value)
+    }
+}
+// Yes, even the `String`
+impl From<String> for SubscribeError {
+    fn from(value: String) -> Self {
+        Self::ValidationError(value)
+    }
+}
+
+impl std::fmt::Debug for SubscribeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        error_chain_fmt(self, f)
+    }
+}
+
+impl std::fmt::Display for SubscribeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SubscribeError::ValidationError(e) => write!(f, "{}", e),
+            SubscribeError::StoreTokenError(_) => {
+                write!(f, "Failed to store confirmation token for new subscriber.")
+            }
+            SubscribeError::SendEmailError(_) => {
+                write!(f, "Failed to send a confirmation email.")
+            }
+            SubscribeError::PoolError(_) => {
+                write!(f, "Failed to acquire a Postgres connection from the pool.")
+            }
+            SubscribeError::InsertSubscriberError(_) => {
+                write!(f, "Failed to insert new subscriber in database.")
+            }
+            SubscribeError::TransactionCommitError(_) => {
+                write!(
+                    f,
+                    "Failed to commit SQL transaction to store new subscriber."
+                )
+            }
+        }
+        // write!(f, "Failed to create a new subscriber.")
+    }
+}
+
+impl std::error::Error for SubscribeError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        // Had *self, but the dereference was not compatible with return type
+        match self {
+            // &str does not implement `Error` - We consider it the root cause
+            SubscribeError::ValidationError(_) => None,
+            // SubscribeError::DatabaseError(e) => Some(e),
+            SubscribeError::StoreTokenError(e) => Some(e),
+            SubscribeError::SendEmailError(e) => Some(e),
+            SubscribeError::PoolError(e) => Some(e),
+            SubscribeError::InsertSubscriberError(e) => Some(e),
+            SubscribeError::TransactionCommitError(e) => Some(e),
+        }
+    }
+}
+
+impl ResponseError for SubscribeError {
+    fn status_code(&self) -> StatusCode {
+        match *self {
+            SubscribeError::ValidationError(_) => StatusCode::BAD_REQUEST,
+            // SubscribeError::DatabaseError(_)
+            SubscribeError::PoolError(_)
+            | SubscribeError::TransactionCommitError(_)
+            | SubscribeError::InsertSubscriberError(_)
+            | SubscribeError::StoreTokenError(_)
+            | SubscribeError::SendEmailError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+}
+
+// New error type, wrapping `sqlx::Error`
+pub struct StoreTokenError(sqlx::Error);
+
+impl std::fmt::Debug for StoreTokenError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // This struct has text, and the one it wraps also does.
+        // write!(f, "{}\nCaused by:\n\t{}", self, self.0)
+        error_chain_fmt(self, f)
+    }
+}
+
+impl std::fmt::Display for StoreTokenError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "A database error was encountered while \
+            trying to store a subscription token."
+        )
+    }
+}
+
+impl std::error::Error for StoreTokenError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        // Compiler casts `&sqlx::Error` into `dyn Error`
+        Some(&self.0)
+    }
+}
+
+impl ResponseError for StoreTokenError {}
+```
+
+Some of this is pretty general, and would be nice if it could be implemented automatically.
+Doesn't Rust have a feature that write code for us?
+I think it's called a macro!
+There's a crate called `thiserror` that provides a derive macro.
+See [thiserror | crates.io] for more details.
+The github linked has lovely README as well.
+
+```bash
+cargo add thiserror
+```
+
+It looks to use the macro and a series of annotations.
+Compare biolerplate to this
+
+```rust
+// #[derive(Debug)] -- Custom implementation
+#[derive(thiserror::Error)]
+pub enum SubscribeError {
+    #[error("{0}")]
+    ValidationError(String),
+    // DatabaseError(sqlx::Error),
+    #[error("Failed to store the confirmation token for a new subscriber.")]
+    StoreTokenError(#[from] StoreTokenError),
+    #[error("Failed to send a confirmation email.")]
+    SendEmailError(#[from] reqwest::Error),
+    #[error("Failed to acquire a Postgres connection from the pool.")]
+    PoolError(#[source] sqlx::Error),
+    #[error("Failed to insert new subscriber in database.")]
+    InsertSubscriberError(#[source] sqlx::Error),
+    #[error("Failed to send a confirmation email.")]
+    TransactionCommitError(#[source] sqlx::Error),
+}
+
+// Keeping our Bespoke implementation of `Debug`
+impl std::fmt::Debug for SubscribeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        error_chain_fmt(self, f)
+    }
+}
+
+/* Should be handled by #[derive(thiserror::Error)]
+impl std::fmt::Display for SubscribeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        [...]
+    }
+}
+
+impl std::error::Error for SubscribeError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        [...]
+    }
+}
+*/
+
+impl ResponseError for SubscribeError {
+    fn status_code(&self) -> StatusCode {
+        match *self {
+            SubscribeError::ValidationError(_) => StatusCode::BAD_REQUEST,
+            // SubscribeError::DatabaseError(_)
+            SubscribeError::PoolError(_)
+            | SubscribeError::TransactionCommitError(_)
+            | SubscribeError::InsertSubscriberError(_)
+            | SubscribeError::StoreTokenError(_)
+            | SubscribeError::SendEmailError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+}
+
+// New error type, wrapping `sqlx::Error`
+pub struct StoreTokenError(sqlx::Error);
+
+impl std::fmt::Debug for StoreTokenError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // This struct has text, and the one it wraps also does.
+        // write!(f, "{}\nCaused by:\n\t{}", self, self.0)
+        error_chain_fmt(self, f)
+    }
+}
+
+impl std::fmt::Display for StoreTokenError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "A database error was encountered while \
+            trying to store a subscription token."
+        )
+    }
+}
+
+impl std::error::Error for StoreTokenError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        // Compiler casts `&sqlx::Error` into `dyn Error`
+        Some(&self.0)
+    }
+}
+
+impl ResponseError for StoreTokenError {}
+```
+
+I am thinking that `#[from]` helps implement the `From<err>` traits.
+Where `#[source]` implements the `Error` trait `.source()` method.
+It's hidden in the README.
+We lost our `From` implementation with `String` errors,
+so we have to explicitly map the `SubscribeError::ValidationError`.
+
+The `thiserror::Error` is a procedural macro used with the _derive_ statement.
+Other attributes are listed in the book:
++ `#[error(...)]` -> defines `Display`
++ `#[source]` -> what is returned as root cause in `Error::source`
++ `#[from]` -> derives implementation of `From`
+
+Apparently when using the `#[from]` annotation it also implements the _source_,
+saving us from annotating twice.
+
+Why don't we use annotations for `ValidationError` variance?
+The `String` type does not implement the `Error` trait.
+It cannot be returned in `Error::source`. 
+This is why, when implemented manually, this branch returned `None`.
+
+The enum `SubscriberError` is explicit but doesn't scale well. 
+We should think in terms of **abstraction layers**.
+That is, what does the caller of `/subscribe` need to know?
+
+We want to cut down the bulk of that error type, and keep details to ourselves.
 
 ---
 
