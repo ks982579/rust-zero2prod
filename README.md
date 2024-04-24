@@ -2087,6 +2087,8 @@ We should think in terms of **abstraction layers**.
 That is, what does the caller of `/subscribe` need to know?
 
 We want to cut down the bulk of that error type, and keep details to ourselves.
+After all of that refactoring, guess what, there's a crate called `anyhow`. 
+Check out [anyhow | crates.io](https://crates.io/crates/anyhow) for details.
 
 ---
 
