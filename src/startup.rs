@@ -7,7 +7,7 @@ use tracing_actix_web::TracingLogger;
 use crate::configuration::{DatabaseSettings, Settings};
 use crate::domain::SubscriberEmail;
 use crate::email_client::EmailClient;
-use crate::routes::{confirm, health_check, subscribe};
+use crate::routes::{confirm, health_check, publish_newletter, subscribe};
 
 // Need a type to hold serve and its port
 pub struct Application {
@@ -104,6 +104,7 @@ pub fn run(
             // .wrap(Logger::default())
             .wrap(TracingLogger::default())
             .route("/health-check", web::get().to(health_check))
+            .route("/newsletters", web::get().to(publish_newletter))
             .route("/subscriptions", web::post().to(subscribe))
             .route("/subscriptions/confirm", web::get().to(confirm))
             // Register connection as part of application state
