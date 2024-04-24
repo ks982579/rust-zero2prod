@@ -1653,6 +1653,127 @@ Now, we implement the `Error` trait on our wrapper.
 We have a nice solution, created a `error_chain_fmt()` function,
 but we can do better (I guess).
 
+What did we do?
+
+```rust
+use actix_web::{web, HttpResponse, ResponseError};
+use chrono::Utc;
+use rand::{
+    distributions::{Alphanumeric, DistString},
+    thread_rng, Rng,
+};
+// use sqlx::PgConnection;
+use sqlx::{Executor, PgPool, Postgres, Transaction};
+// use tracing::Instrument;
+use unicode_segmentation::UnicodeSegmentation;
+use uuid::Uuid;
+
+use crate::{
+    domain::{NewSubscriber, SubscriberEmail, SubscriberName},
+    email_client::EmailClient,
+    startup::ApplicationBaseUrl,
+};
+
+// New error type, wrapping `sqlx::Error`
+pub struct StoreTokenError(sqlx::Error);
+
+/// Iterators over whole chain of errors
+/// Can be used in `Debug` implementation for Error types!
+fn error_chain_fmt(
+    e: &impl std::error::Error,
+    f: &mut std::fmt::Formatter<'_>,
+) -> std::fmt::Result {
+    // This writes into a _buffer_
+    writeln!(f, "{}\n", e)?;
+    let mut current = e.source();
+    while let Some(cause) = current {
+        writeln!(f, "Caused by:\n\t{}", cause)?;
+        current = cause.source();
+    }
+    Ok(())
+}
+
+impl std::fmt::Debug for StoreTokenError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // This struct has text, and the one it wraps also does.
+        // write!(f, "{}\nCaused by:\n\t{}", self, self.0)
+        error_chain_fmt(self, f)
+    }
+}
+
+impl std::fmt::Display for StoreTokenError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "A database error was encountered while \
+            trying to store a subscription token."
+        )
+    }
+}
+
+impl std::error::Error for StoreTokenError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        // Compiler casts `&sqlx::Error` into `dyn Error`
+        Some(&self.0)
+    }
+}
+
+impl ResponseError for StoreTokenError {}
+
+#[derive(serde::Deserialize)]
+pub struct FormData {
+    email: String,
+    name: String,
+}
+
+// Implementing `TryFrom` automagically give you `TryInto`
+impl TryFrom<FormData> for NewSubscriber {
+    type Error = String;
+
+    fn try_from(value: FormData) -> Result<Self, Self::Error> {
+        let name = SubscriberName::parse(value.name)?;
+        let email = SubscriberEmail::parse(value.email)?;
+        Ok(Self { email, name })
+    }
+}
+
+// [...]
+
+#[tracing::instrument(name = "Store subscription token in the database", skip_all)]
+pub async fn store_token(
+    transaction: &mut Transaction<'_, Postgres>,
+    subscriber_id: Uuid,
+    subscription_token: &str,
+) -> Result<(), StoreTokenError> {
+    let query = sqlx::query!(
+        r#"INSERT INTO subscription_tokens (subscription_token, subscriber_id)
+    VALUES ($1, $2)"#,
+        subscription_token,
+        subscriber_id,
+    );
+    transaction.execute(query).await.map_err(|e| {
+        tracing::error!("Failed to execute query: {:?}", e);
+        StoreTokenError(e)
+    })?;
+    Ok(())
+}
+
+// [...]
+```
+
+Basically, this `actix_web::Error` coming from `store_token()` is basically some random function,
+completely unaware of REST or HTTP protocol. 
+As such, if the code were reused for a non-REST implementation,
+we wouldn't want to return an error of Status 500 on failure.
+We will start over now to enfore separation of concerns. 
+We create `SubscribeError`.
+
+The book says to nuke the error, but then we use it I think later on.
+Just create an enum for error types and we can take it from there.
+
+Suppose it is work talking about the `?` operator.
+If we implement `From<err>` for each variant, we should be able to use the `?`.
+
 ---
 
 ## Ch. 9 - Niave Newsletter Deliver
