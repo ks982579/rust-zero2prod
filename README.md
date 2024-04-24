@@ -2087,14 +2087,110 @@ We should think in terms of **abstraction layers**.
 That is, what does the caller of `/subscribe` need to know?
 
 We want to cut down the bulk of that error type, and keep details to ourselves.
+
+```rust
+#[derive(thiserror::Error)]
+pub enum SubscribeError {
+    #[error("{0}")]
+    ValidationError(String),
+    // "transparent" delegates Display's and source's implementation
+    // to the type wrapped by UnexpectedError
+    // #[error(transparent)]
+    // Adding a string to provide additional information
+    #[error("{1}")]
+    UnexpectedError(#[source] Box<dyn std::error::Error>, String),
+}
+// [...]
+impl ResponseError for SubscribeError {
+    fn status_code(&self) -> StatusCode {
+        match *self {
+            SubscribeError::ValidationError(_) => StatusCode::BAD_REQUEST,
+            SubscribeError::UnexpectedError(_, _) => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+}
+```
+
+We did this, adding a `String` to convey additional information.
+Example being like:
+
+```rust
+pub async fn subscribe(
+    [...]
+) -> Result<HttpResponse, SubscribeError> {
+    // [...]
+    let mut transaction = pool.begin().await.map_err(|e| {
+        SubscribeError::UnexpectedError(
+            Box::new(e),
+            "Failed to acquire a Postgres connection from the pool".into(),
+        )
+    })?;
+    // [...]
+    Ok(HttpResponse::Ok().finish())
+}
+```
+
 After all of that refactoring, guess what, there's a crate called `anyhow`. 
 Check out [anyhow | crates.io](https://crates.io/crates/anyhow) for details.
+Basically, we can replace `Box<dyn std::error::Error>` with `anyhow::Error`.
+
+```rust
+use anyhow::Context;
+
+#[derive(thiserror::Error)]
+pub enum SubscribeError {
+    #[error("{0}")]
+    ValidationError(String),
+    #[error(transparent)]
+    UnexpectedError(#[from] anyhow::Error),
+}
+// [...]
+fn example() -> Result<_, _> {
+    let subscriber_id = insert_subscriber(&mut transaction, &new_subscriber)
+        .await
+        .context("Failed to insert new subscriber into database")?;
+}
+```
+
+It's a nice touch I guess.
+
+You can again, see logs in tests with...
+
+```bash
+export RUST_LOG="sqlx=error,info"
+export TEST_LOG=true
+cargo test subscribe_fails_if_there_is_a_fatal_database_error | bunyan
+```
+
+We see information three times, 
+1. from `tracing::error!()` in code.
+2. from `actix_web` converting our `SubscribeError` into `actix_web::Error`
+3. from `tracing_actix_web::TracingLogger` telemetry middleware.
+
+Rule of thumb is errors should be logged when handled.
+Porpagating errors with `?` is not a case of handling, so shouldn't log.
+
+The author suggest to tackle the "confirm" section to practice your error handling skills.
 
 ---
 
 ## Ch. 9 - Niave Newsletter Deliver
 
 Starts p. 361 / 380
+
+Make a habbit of revisiting user stories throughout project lifecycle.
+They can change with implementation.
+Start writing test that unconfirmed subscribers should **not** receive newsletters.
+
+We use a _scoped_ mock to ensure that the mock of sending an confirmation email
+does not blend with our other mock instance.
+The `mount_as_scoped` returns a `MockGuard`, 
+which has a custom `Drop` implementation to switch off the mock server when the Guard is out of scope.
+Also note when the Guard is dropped it will check it's `expect` clause.
+
+I was confused at first catching request to `{}/email` but
+basically the local configuration sends requests back at localhost.
+
 
 ---
 
