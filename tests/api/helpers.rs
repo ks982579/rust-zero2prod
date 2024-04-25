@@ -37,6 +37,7 @@ pub struct TestApp {
 }
 
 /// Confirmation links embedded in request to the email API.
+#[derive(Debug)]
 pub struct ConfirmationLinks {
     pub html: reqwest::Url,
     pub plain_text: reqwest::Url,
@@ -54,6 +55,7 @@ impl TestApp {
     }
     pub fn get_confirmation_links(&self, email_request: &wiremock::Request) -> ConfirmationLinks {
         let body: serde_json::Value = serde_json::from_slice(&email_request.body).unwrap();
+        dbg!(&body);
 
         // Extract link from request fields.
         let get_link = |s: &str| {
@@ -63,10 +65,11 @@ impl TestApp {
                 .collect();
             assert_eq!(links.len(), 1);
             let raw_link = links[0].as_str().to_owned();
-            let mut confirmation_link = reqwest::Url::parse(&raw_link).unwrap();
+            let mut confirmation_link: reqwest::Url = reqwest::Url::parse(&raw_link).unwrap();
             // Ensure not calling random APIs on web
             assert_eq!(confirmation_link.host_str().unwrap(), "127.0.0.1");
             confirmation_link.set_port(Some(self.port)).unwrap();
+            dbg!(&confirmation_link);
             confirmation_link
         };
 

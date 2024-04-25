@@ -34,12 +34,15 @@ async fn create_unconfirmed_subscriber(app: &TestApp) -> ConfirmationLinks {
         .pop()
         .unwrap();
 
+    dbg!(&email_request);
+
     app.get_confirmation_links(&email_request)
 }
 
 async fn create_confirmed_subscriber(app: &TestApp) {
     // Reuse above helper, basically clicking the link.
     let confirmation_link: ConfirmationLinks = create_unconfirmed_subscriber(app).await;
+    dbg!(&confirmation_link.html);
 
     // send GET to link
     reqwest::get(confirmation_link.html)

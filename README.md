@@ -2277,6 +2277,17 @@ Apparently sending emails to only valid addresses is a business decision.
 We shouldn't make that decision in this function.
 So return a vector of results instead.
 
+One test is failing, and I cannot figure it out for the life of me.
+The rest of this Chapter talks about shortcomings of this approach.
+Mainly anyone right now can send a POST request to the endpoint and it would send emails to our clients.
+Well, mine might not because that test is failing.
+Other things include:
++ We send emails one at a time, bad performance.
++ No chance to review before sending emails.
++ If one email fails, the error returns 500 
+    + rest of emails are not sends, we don't retry failure.
++ Networks are unstable, and there's no clause for retry unless you resend to everyone. 
+
 ---
 
 ## Ch. 10 - Securing API
