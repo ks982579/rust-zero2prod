@@ -104,7 +104,7 @@ pub fn run(
             // .wrap(Logger::default())
             .wrap(TracingLogger::default())
             .route("/health-check", web::get().to(health_check))
-            .route("/newsletters", web::get().to(publish_newletter))
+            .route("/newsletters", web::post().to(publish_newletter))
             .route("/subscriptions", web::post().to(subscribe))
             .route("/subscriptions/confirm", web::get().to(confirm))
             // Register connection as part of application state

@@ -11,6 +11,7 @@ use uuid::Uuid;
 use crate::{
     domain::{NewSubscriber, SubscriberEmail, SubscriberName},
     email_client::EmailClient,
+    routes::error_chain_fmt,
     startup::ApplicationBaseUrl,
 };
 
@@ -209,7 +210,7 @@ pub async fn send_confirmation_email(
         confirmation_link
     );
     email_client
-        .send_email(new_subscriber.email, &greeting, &html_body, &plain_body)
+        .send_email(&new_subscriber.email, &greeting, &html_body, &plain_body)
         .await
 }
 
@@ -334,20 +335,4 @@ fn generate_subscription_token() -> String {
     // let mut rng = thread_rng();
     // (0..25).map(|_| rng.sample(Alphanumeric) as char).collect()
     Alphanumeric.sample_string(&mut rand::thread_rng(), 25)
-}
-
-/// Iterators over whole chain of errors
-/// Can be used in `Debug` implementation for Error types!
-fn error_chain_fmt(
-    e: &impl std::error::Error,
-    f: &mut std::fmt::Formatter<'_>,
-) -> std::fmt::Result {
-    // This writes into a _buffer_
-    writeln!(f, "{}\n", e)?;
-    let mut current = e.source();
-    while let Some(cause) = current {
-        writeln!(f, "Caused by:\n\t{}", cause)?;
-        current = cause.source();
-    }
-    Ok(())
 }

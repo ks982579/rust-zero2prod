@@ -2191,6 +2191,91 @@ Also note when the Guard is dropped it will check it's `expect` clause.
 I was confused at first catching request to `{}/email` but
 basically the local configuration sends requests back at localhost.
 
+So, we have 2 tests, one to send to confirmed subscribers,
+and one to ensure we don't send to unconfirmed subscribers.
+As the book says, we begin with a naive approach. 
+Looks like we send in the data,
+parse it from the request,
+fetch a list of newsletter confirmed subscribers,
+build up the email request,
+and send that to PostMark.
+
+We are using HTML form data for `/subscriptions`.
+But it is common to use JSON for REST APIs,
+which we will choose here.
+Also good to cover all ground.
+
+We continue now building out the `src/routes/newsletters.rs` file.
+Writing additional tests now hits me with a too many open files failure.
+Per page 260 the limit is usually set to 1024.
+We can increase with:
+
+```bash
+ulimit -n <number-of-pages (e.g. 10000)>
+```
+
+I also made the mistake of having the route accept GET  requests instead of POST.
+Things to look out for.
+It's an unfortunate consequence that we need to lean on our learnings in Ch. 8
+for proper error handling.
+The SQL query to get subscribers can be erroneous.
+As such, a call to the `/newsletters` endpoint can end in error.
+So it should return a result.
+
+A weird `anyhow::Ok` import snuck into my code and messed everything up.
+So weird, but then using `Ok()` was returning the wrong thing.
+
+An issue is that the database gives us a `String`,
+and sqlx does not naturally convert into other Rust custom types.
+We can get around this using a Type for sqlx, and converting that
+with the lovely `into` trait maybe?
+
+We almost did this...
+
+```rust
+// [...]
+    let confirmed_subscribers = rows
+        .into_iter()
+        .map(|r| ConfirmedSubscriber {
+            // Because validation is performed when entering email into
+            // database, the `unwrap()` should never panic.
+            // Unless we change validation logic in future...
+            email: SubscriberEmail::parse(r.email).unwrap(),
+        })
+        .collect();
+// [...]
+```
+
+But because we could improve the parser,
+we don't want to panic collecting emails and exit the program.
+Instead, we can log a warning and move on with other emails.
+We instead do this:
+
+```rust
+// [...]
+    // Map into domain type
+    let confirmed_subscribers = rows
+        .into_iter()
+        .filter_map(|r| match SubscriberEmail::parse(r.email) {
+            Ok(email) => Some(ConfirmedSubscriber { email }),
+            Err(error) => {
+                tracing::warn!(
+                    "A confirmed subscriber is using an invalid email address:\n\t{}",
+                    error
+                );
+                None
+            }
+        })
+        .collect();
+// [...]
+```
+
+The `filter_map` returns an interator containing items that returned a `Some()` variant.
+Then, as is typical, we aren't happy with this method and change it again.
+What's wrong?
+Apparently sending emails to only valid addresses is a business decision.
+We shouldn't make that decision in this function.
+So return a vector of results instead.
 
 ---
 
