@@ -88,10 +88,10 @@ async fn newsletters_are_delivered_to_confirmed_subscribers() {
     let app = spawn_app().await;
     create_unconfirmed_subscriber(&app).await;
 
-    Mock::given(any())
+    Mock::given(path("/email"))
+        .and(method("POST"))
         .respond_with(ResponseTemplate::new(200))
-        // We assert that no request should be sent
-        .expect(0)
+        .expect(1)
         .mount(&app.email_server)
         .await;
 
@@ -113,4 +113,5 @@ async fn newsletters_are_delivered_to_confirmed_subscribers() {
 
     // Assert
     assert_eq!(response.status().as_u16(), 200);
+    // Mock verifies on Drop if we sent request for newsleter email.
 }
