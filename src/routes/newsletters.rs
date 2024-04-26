@@ -160,6 +160,22 @@ fn basic_authentication(headers: &HeaderMap) -> Result<Credentials, anyhow::Erro
     })
 }
 
+async fn validate_credentials(
+    credentials: Credentials,
+    pool: &PgPool,
+) -> Result<uuid::Uuid, PublishError> {
+    let user_id: Option<_> = sqlx::query!(
+        r#"
+    SELECT user_id
+    FROM users
+    WHERE username = $1 AND password = $2
+    "#,
+        credentials.username,
+        credentials.password.expose_secret()
+    )
+    .fetch_optional(pool);
+}
+
 /// Pulling `PgPool` from application state.
 pub async fn publish_newletter(
     body: web::Json<BodyData>,
