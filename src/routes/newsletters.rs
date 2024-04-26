@@ -9,7 +9,7 @@ use actix_web::{
 };
 use anyhow::Context;
 use base64::Engine;
-use secrecy::Secret;
+use secrecy::{ExposeSecret, Secret};
 use sqlx::PgPool;
 
 use crate::{domain::SubscriberEmail, email_client::EmailClient, routes::error_chain_fmt};
@@ -173,10 +173,24 @@ async fn validate_credentials(
         credentials.username,
         credentials.password.expose_secret()
     )
-    .fetch_optional(pool);
+    .fetch_optional(pool)
+    .await
+    .context("Failed to perform a query to validate auth credentials.")
+    .map_err(PublishError::UnexpectedError)?;
+
+    user_id
+        .map(|row| row.user_id)
+        .ok_or_else(|| anyhow::anyhow!("Invalid Username or Password."))
+        .map_err(PublishError::AuthError)
 }
 
 /// Pulling `PgPool` from application state.
+/// Adding tracing to see who is Calling POST /newsletters
+#[tracing::instrument(
+    name = "Publish a newsletter issue."
+    skip_all
+    fields(username=tracing::field::Empty, user_id=tracing::field::Empty)
+)]
 pub async fn publish_newletter(
     body: web::Json<BodyData>,
     pool: web::Data<PgPool>,
@@ -184,9 +198,18 @@ pub async fn publish_newletter(
     // New Extractor!
     request: HttpRequest,
 ) -> Result<HttpResponse, PublishError> {
-    let _credentials = basic_authentication(request.headers())
+    let credentials = basic_authentication(request.headers())
         // Bubble up error and convert.
         .map_err(PublishError::AuthError)?;
+
+    // Add username to trace
+    tracing::Span::current().record("username", &tracing::field::display(&credentials.username));
+
+    let user_id = validate_credentials(credentials, pool.as_ref()).await?;
+
+    // Add user_id to trace
+    tracing::Span::current().record("user_id", &tracing::field::display(&user_id));
+
     // adding the body, good to test sending invalid data
     let subscribers = get_confirmed_subscribers(pool.as_ref()).await?;
     for subscriber in subscribers {

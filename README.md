@@ -2429,6 +2429,19 @@ On to Naive password verification.
 sqlx migrate add create_users_table
 ```
 
+I had a soul crushing experience with SQLX,
+I must have changed the migration after migrating.
+The checksum failed and it wouldn't run migrations because of the difference.
+Could have been anything.
+
+```bash
+sqlx migrate add -r <MIGRATION-NAME>
+```
+
+That will create `*.down.sql` and `*.up.sql` files allowing you to revert.
+
+Now with updates made to optionally fetch user data, 
+we have tests to update.
 
 
 ---
