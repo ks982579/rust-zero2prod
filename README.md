@@ -2443,6 +2443,15 @@ That will create `*.down.sql` and `*.up.sql` files allowing you to revert.
 Now with updates made to optionally fetch user data, 
 we have tests to update.
 
+Now, we don't want to store passwords in raw text in our database.
+The author points to [Cryptographic Hash Functions | Wiki](https://en.wikipedia.org/wiki/Cryptographic_hash_function).
+Hash function do run risk of collision in most cases,
+but the risk is/should be very low. 
+Cryptographic hash function examples: MD5, SHA-1, SHA-2, SHA-3, Kangaroo Twelve, etc...
+We'll just use Secure Hash Algorithm (SHA) 3. 
+You can also imply output size, 224, 256, 384, or 512 bits, like SHA-3-512.
+SHA-3-256 will be fine because more bits means more storage and bandwidth. 
+
 
 ---
 
