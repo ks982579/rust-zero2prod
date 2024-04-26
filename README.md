@@ -2288,11 +2288,148 @@ Other things include:
     + rest of emails are not sends, we don't retry failure.
 + Networks are unstable, and there's no clause for retry unless you resend to everyone. 
 
+Ok, I am... probably programming on a lack of sleep.
+So, the issue I tried debugging earlier was for test `newsletters_are_delivered_to_confirmed_subscribers`.
+It was running, but the mock server wasn't seeing the request to `/email`.
+We created a function to generate a confirmed user.
+The issue was I was using the function for an unconfirmed user.
+
 ---
 
 ## Ch. 10 - Securing API
 
 Starts p. 387 / 406 and is over 100 pages long...
+
+But it's an important section.
+We will look at authentication and authorization. 
+Some approaches include:
++ Basic Auth
++ Session-Based Auth
++ OAuth 2.0
++ OpenId Connect
+
+And we will think about the most used token formats **JSON Web Tokens** (JWTs).
+
+You probably know the 3 categories of athentication:
++ Something you know (password)
++ Somthing you have (phone)
++ Something you are (Face, fingerprint)
+
+Each approach has its weaknesses,
+which is why we combine them with multi-factor authentication.
+
+We will start with **Basic Authentication**, 
+a standard defined by the Internet Engineering Task Force.
+The API looks for `Authorization` header on incoming request:
+
+```bash
+Authorization: Basic <encoded credentials>
+```
+
+The encoding is just [Base 64 Encoding](https://datatracker.ietf.org/doc/html/rfc4648#section-4)
+of "{username}:{password}".
+Encoding is not encryption, there's no secret.
+We create a **realm**, 
+a partition of protected space.
+We only need a single realm, we will call "publish". 
+
+There's more to it than just this.
+The API rejects requests missing the header or using invalid credentials.
+It must respond with _401 Unauthorized_.
+It also returns a special header with a challenge explaining to the API caller
+what type of authentication scheme we expect to see for the relevant realm.
+
+```bash
+HTTP/1.1 401 Unauthorized
+WWW-Authenticate: Basic realm="publish"
+```
+
+That is a log to know.
+
+Start with extracting credentials.
+We probably need the `base64` crate...
+
+```bash
+cargo add base64
+```
+
+I want to put here what we just wrote, 
+the complexity around the simplicity of getting credentials:
+
+```rust
+/// Using base64 for authentication
+fn basic_authentication(headers: &HeaderMap) -> Result<Credentials, anyhow::Error> {
+    // Header value, if present, must be valid UTF8
+    let header_value: &str = headers
+        .get("Authorization")
+        // `context` adds a message to the error
+        .context("The 'Authorization' header was missing.")?
+        .to_str()
+        .context("The 'Authorization' header was not a valid UTF8 string.")?;
+
+    let base64encoded_segment: &str = header_value
+        // Returns Option<&str> without prefix
+        .strip_prefix("Basic ")
+        .context("The authorization scheme was not 'Basic'.")?;
+
+    let decoded_bytes: Vec<u8> = base64::engine::general_purpose::STANDARD
+        // returns Result<Vec<u8>, base64::DecodeError>
+        .decode(base64encoded_segment)
+        .context("Failed to base64-decode 'Basic' credentials.")?;
+
+    let decoded_credentials: String = String::from_utf8(decoded_bytes)
+        .context("The decoded credential string is not valid UTF8.")?;
+
+    // Split based on ':' delimiter
+    // SplitN is an iterator
+    let mut credentials: std::str::SplitN<'_, char> = decoded_credentials.splitn(2, ':');
+    // Pull out first value in iterator
+    let username: String = credentials
+        .next()
+        // `ok_or()` is _eagerly_ evaluated, this takes a closure
+        .ok_or_else(|| anyhow::anyhow!("A username must be provided in 'Basic' auth."))?
+        .to_string();
+    // Pull out second value in iterator
+    let password: String = credentials
+        .next()
+        .ok_or_else(|| anyhow::anyhow!("A password must be provided in 'Basic' auth."))?
+        .to_string();
+
+    Ok(Credentials {
+        username,
+        password: Secret::new(password),
+    })
+}
+```
+
+Now we need to update our errors.
+
+So the general workflow appears to be,
+helper functions, like `basic_authentication` will return the `anyhow::Error`.
+We then must know to map this error to our authentication error.
+I guess this makes sense because so many different errors can occur in the process,
+we need to map to something generic, like a catch-all,
+without implementing `InTo` for every known error.
+
+We get the right status code but the header isn't correct yet.
+We implement `ResponseError::status_code()`,
+but now need `ResponseError::error_response()`.
+The way this trait works, 
+It would invoke `error_response` which would call our `status_code`.
+We can trash the `status_code` if we implement a bespoke `error_response`.
+Unless you want to call `status_code` in your `error_response`.
+Hint, don't.
+
+Of course, adding credentials kind of breaks other tests.
+We add some random credentials in the `TestApp` that can be parsed.
+
+On to Naive password verification.
+
+```bash
+sqlx migrate add create_users_table
+```
+
+
 
 ---
 
