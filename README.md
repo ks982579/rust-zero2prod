@@ -2456,7 +2456,69 @@ Ok, back from holiday and right into it.
 Starting around p. 404, we create a `TestUser` struct to create a test user.
 This guy gets a hashed password.
 
+The author dives into *Preimage* attack,
+where a bad actor matches the input string's SHA3-256 to ones in our database. 
+Because a brute-force attack an unfeasible time to compute,
+we should be protected.
 
+Then we dive into Naive Dictionary Attacks.
+We mention _rainbow tables_, a data structure to pre-compute and lookup hashes.
+It can still take up to 30 years to brute-force with a GPU.
+However, a user gains extra protection by using long randomly-generated passwords.
+
+Most people don't use randomly randomly-generated passwords though.
+And they will reuse passwords across multiple accounts.
+There are known datasets of common passwords in the wild,
+taken from compromised websites and such.
+This means bad actors can precompute like 10 million password hashes,
+and scan the database looking for a match.
+This is a *dictionary attack*.
+
+We have discussed fast to compute cryptographic functions so far.
+This means an attack can be done without specialised hardware.
+We should consider slower to compute cryptographic functions.
+
+Check out the *Open Web Application Secutiry Project* (OWASP).
+They provide guidance on safe password storage.
+They suggest some _computationally demanding_ algorithms.
+We will replace SHA-3 with Argon2id, as recommended.
+
+The author then covers using the rust crate starting p. 406:
+
+```bash
+cargo add argon2@0.4 --features std
+```
+
+I am hoping the API hasn't changed because the current latest  is v.0.5.
+If you have questions you should refer to the book or the Argon2 docs.
+
+It has a `PasswordHasher` trait,
+which requires a salt. 
+We generate a *salt* for each user,
+a unique random string to prepend to the user password before hashing.
+salt is stored next to the password_hash in the database.
+This means an attacker also has to a lot of rehashing to do even if
+they have access to our database.
+
+We need to add salt to the database and update the code accordingly.
+
+```bash
+sqlx migrate add add_salt_to_users
+nvim . # fill in the SQL
+sqlx migrate run
+```
+
+```sql
+ALTER TABLE users ADD COLUMN salt TEXT NOT NULL;
+```
+
+Then, you need to pull the Salt before you can check the password.
+
+We implement all of that fun stuff to see that `LowerHex` is not implemented for this Argon2 hash.
+This means the base64 encoding isn't really compatible with this method of storing passwords.
+Since we need to update, we will consider something better than base64.
+
+pdf p. 429
 
 ---
 
