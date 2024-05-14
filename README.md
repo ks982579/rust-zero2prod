@@ -2452,6 +2452,11 @@ We'll just use Secure Hash Algorithm (SHA) 3.
 You can also imply output size, 224, 256, 384, or 512 bits, like SHA-3-512.
 SHA-3-256 will be fine because more bits means more storage and bandwidth. 
 
+Ok, back from holiday and right into it.
+Starting around p. 404, we create a `TestUser` struct to create a test user.
+This guy gets a hashed password.
+
+
 
 ---
 

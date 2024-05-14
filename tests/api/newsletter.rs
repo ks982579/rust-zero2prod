@@ -34,7 +34,7 @@ async fn create_unconfirmed_subscriber(app: &TestApp) -> ConfirmationLinks {
         .pop()
         .unwrap();
 
-    dbg!(&email_request);
+    // dbg!(&email_request);
 
     app.get_confirmation_links(&email_request)
 }
