@@ -7,7 +7,6 @@ use sqlx::{Connection, Executor, PgConnection, PgPool};
 //use std::net::TcpListener;
 // use tracing_subscriber::fmt::format;
 use reqwest::{Client, Response};
-use sha3::Digest;
 use std::sync::OnceLock;
 use uuid::Uuid;
 use wiremock::MockServer;
