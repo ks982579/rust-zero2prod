@@ -2518,7 +2518,32 @@ We implement all of that fun stuff to see that `LowerHex` is not implemented for
 This means the base64 encoding isn't really compatible with this method of storing passwords.
 Since we need to update, we will consider something better than base64.
 
-pdf p. 429
+When storing password in database we assume all values stored have been computed wiith the same
+load parameters. 
+Those are the `t_cost`, `m_cost`, `p_cost` parameters of Argon2id.
+The basic idea now is to store this information in the database in case we update
+the parameters in the future. 
+You might even want to store Algorithm information in case we change that.
+We will use a **PHC** string to store it all in one column.
+
+```bash
+# ${algorithm}${algorithm version}${,-separated algorithm parameters}${hash}${salt}
+$argon2id$v=19$m=65536,t=2,p=1$gZiV/M1gPc22ElAH/Jh1Hw
+    $CWOrkoo7oJBQ/iyh7uJ0LO2aLEfrHwtWllSAxT0zRno
+```
+
+The `argon2` crate implements this in `PasswordHash`.
+We can rely on `PasswordVerifier::veriify_password()`.
+It was a little confusing because there's a `PasswordHasher` trait,
+which can be confused with the `PasswordHash` struct.
+We also remove _salt_ column from the database.
+
+```
+TEST_LOG=true cargo t newsletters_are_not_delivered | bunyan
+```
+
+Tests are crashing because the hashes are not valid.
+Still using SHA-3 in our tests!
 
 ---
 
