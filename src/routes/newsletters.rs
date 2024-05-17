@@ -188,20 +188,46 @@ async fn validate_credentials(
     //         )));
     //     }
     // };
-    let expected_password_hash = PasswordHash::new(&expected_password_hash.expose_secret())
+
+    // Confirmed to be CPU intense, we want to move into different thread.
+    tokio::task::spawn_blocking(move || {
+        verify_password_hash(expected_password_hash, credentials.password)
+    })
+    .await
+    // spawn_blocking is fallible - we have nested result
+    .context("Failed to spawn blocking task.")
+    .map_err(PublishError::UnexpectedError)??;
+    Ok(user_id)
+}
+
+#[tracing::instrument(name = "Verify Password Hash", skip_all)]
+fn verify_password_hash(
+    expected_password_hash: Secret<String>,
+    password_candidate: Secret<String>,
+) -> Result<(), PublishError> {
+    let expected_password_hash = PasswordHash::new(expected_password_hash.expose_secret())
         .context("Failed to parse hash in PHC string format.")
         .map_err(PublishError::UnexpectedError)?;
 
-    tracing::info_span!("Verify password hash")
-        .in_scope(|| {
-            Argon2::default().verify_password(
-                credentials.password.expose_secret().as_bytes(),
-                &expected_password_hash,
-            )
-        })
+    Argon2::default()
+        .verify_password(
+            password_candidate.expose_secret().as_bytes(),
+            &expected_password_hash,
+        )
         .context("Invalid Password.")
-        .map_err(PublishError::AuthError)?;
-    Ok(user_id)
+        .map_err(PublishError::AuthError)
+
+    /* Before moving into own function, we can do this for info...
+    // Confirmed to be CPU intense, we want to move into different thread.
+    tracing::info_span!("Verify password hash").in_scope(|| {
+        Argon2::default().verify_password(
+            credentials.password.expose_secret().as_bytes(),
+            &expected_password_hash,
+        )
+    })
+    .context("Invalid Password.")
+    .map_err(PublishError::AuthError)?;
+    */
 }
 
 /// Extracing db-query logic into own function to give own span.
