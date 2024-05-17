@@ -2544,6 +2544,52 @@ TEST_LOG=true cargo t newsletters_are_not_delivered | bunyan
 
 Tests are crashing because the hashes are not valid.
 Still using SHA-3 in our tests!
+We remove from our tests and from `Cargo.toml`.
+
+p. 434 - 10.2.4 = Do Not Block Async Executor
+
+Going to put a span around password hashing...
+We wrapped verifying the password into it's own `info_span!()`.
+This means we can...
+
+```bash
+TEST_LOG=true cargo test --quiet --release \
+    newletters_are_delivered | grep "VERIFY PASSWORD" | bunyan
+```
+
+I had to...
+
+```bash
+cargo install bunyan
+ulimit -n 10000
+```
+
+And still, in NeoVim, had to run and search in terminal because was getting
+strange error.
+But just running the tests in regular mode was OK.
+
+Not in release, elapsed time was 456 milliseconds.
+Wow, that's not great.
+
+I think bunyan is causing me pain.
+Running Tests in release mode, still getting `"elapsed_milliseconds": 20`.
+Under serious load this can cause **blocking** problems.
+The author jumps into topic of **cooperative scheduling** (p.416).
+These are topics of Rust's async runtime.
+They compare it to a deeply nested state machine. 
+The `.await` calls are often named **yield points**.
+The futures progress from the previous `.await` to the next,
+before yeilding control back to the executor. 
+
+The executor can choose to poll the same future again or prioritise progress on another task.
+This is how `tokio` manages progress concurrently on multiple tasks. 
+Pretty much only works good assuming tasks _cooperate_ by frequently yielding
+control back to the executor so it can perform other tasks if necessary.
+All-in-all, a _poll_ is expected to be fast, like less than 10-100 microseconds.
+
+Author gives shout out to "Async: What is Blocking?" by Alice Rhyl.
+
+Basically, we should offload this Argon2 CPU intense task somewhere else to not block.
 
 ---
 

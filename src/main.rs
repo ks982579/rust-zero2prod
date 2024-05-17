@@ -13,7 +13,6 @@ use zero2prod::{
 /// Main function to start service.
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
-    // Very difficult to pin down concrete type...
     let subscriber = get_subscriber("zero2prod".into(), "info".into(), std::io::stdout);
     init_subscriber(subscriber);
     // Panic if we can't read configuration!
