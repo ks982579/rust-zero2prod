@@ -2591,6 +2591,10 @@ Author gives shout out to "Async: What is Blocking?" by Alice Rhyl.
 
 Basically, we should offload this Argon2 CPU intense task somewhere else to not block.
 
+p. 422 10.2.5 = User Enumeration
+
+Adding tests case to reject non-existing user!
+
 ---
 
 ## Ch. 11 - Fault-tolerant Workflows

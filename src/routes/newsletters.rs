@@ -14,7 +14,10 @@ use secrecy::{ExposeSecret, Secret};
 // use sha3::Digest;
 use sqlx::PgPool;
 
-use crate::{domain::SubscriberEmail, email_client::EmailClient, routes::error_chain_fmt};
+use crate::{
+    domain::SubscriberEmail, email_client::EmailClient, routes::error_chain_fmt,
+    telemetry::spawn_blocking_with_tracing,
+};
 
 #[derive(thiserror::Error)]
 pub enum PublishError {
@@ -189,8 +192,22 @@ async fn validate_credentials(
     //     }
     // };
 
+    /* Replaced with function but keeping notes...
+    // Spans kind of stick to a thread, So...
+    let current_span: tracing::Span = tracing::Span::current();
+
     // Confirmed to be CPU intense, we want to move into different thread.
     tokio::task::spawn_blocking(move || {
+        // Pass ownership of Span into closure to execute our computation
+        // within its scope
+        current_span.in_scope(|| {
+            // Logic moved into function so this closure can own all necessary data.
+            // Else, main thread can drop values and create dangling references.
+            verify_password_hash(expected_password_hash, credentials.password)
+        })
+    })
+        */
+    spawn_blocking_with_tracing(move || {
         verify_password_hash(expected_password_hash, credentials.password)
     })
     .await
@@ -200,6 +217,9 @@ async fn validate_credentials(
     Ok(user_id)
 }
 
+/// `PasswordHash` has a lifetime, so we must move ownership of
+/// its string into thread closure for abide by borrow checker.
+/// This function takes ownership of that string.
 #[tracing::instrument(name = "Verify Password Hash", skip_all)]
 fn verify_password_hash(
     expected_password_hash: Secret<String>,
