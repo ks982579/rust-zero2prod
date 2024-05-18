@@ -2645,6 +2645,14 @@ p. 429
 Firstly, how do we return HTML pages from the API?
 Start by creating a `home` module...
 
+### 10.6 Login
+
+p. 432
+
+The author continues to make modules in `src/routes`.
+I would argue at this point for more of a **Model View Template** approach.
+But I am almost certian this is part of the learning journey and we will refactor later.
+
 
 ---
 
