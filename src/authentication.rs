@@ -34,8 +34,8 @@ pub async fn validate_credentials(
     let mut user_id = None;
     let mut expected_password_hash = Secret::new(
         "$argon2id$v=19$m=15000,t=2,p=1$\
-            gZiV/M1gPc22ElAH/Jh1Hw$\
-            CWOrkoo7oBQ/iyh7uJ0lO2aLEfrHwTWllSAxT0Rno"
+        gZiV/M1gPc22ElAH/Jh1Hw$\
+        CWOrkoo7oJBQ/iyh7uJ0LO2aLEfrHwTWllSAxT0zRno"
             .to_string(),
     );
 

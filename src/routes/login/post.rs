@@ -17,9 +17,9 @@ pub struct FormData {
 
 #[derive(thiserror::Error)]
 pub enum LoginError {
-    #[error("Autheniication Failed")]
+    #[error("Authenication Failed")]
     AuthError(#[source] anyhow::Error),
-    #[error("Something went wrong")]
+    #[error("---- Something went wrong ----")]
     UnexpectedError(#[from] anyhow::Error),
 }
 
