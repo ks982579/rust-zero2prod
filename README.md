@@ -2713,6 +2713,75 @@ cargo add urlencoding
 
 We can update the redirect now to include an error as a query param.
 Then, we update the GET page based on that query param.
+The solution checks if any error is passed back.
+We use the `format!()` macro, not great.
+Some template engines are `tera` and `askama`... But beyond the scope.
+
+This actually opens the website up to **Cross-Site Scripting** attacks.
+If someone hijacks the connection and sends a user the same page with
+query parameters directing them to a more malicious page...
+This can also be done with JavaScript.
+[OWASP has a cheat sheet](https://cheatsheetseries.owasp.org/index.html)
+for preventing XSS attacks.
+
+```bash
+cargo add htmlescape
+```
+
+This crate can HTML entity-encode the untrusted input.
+
+Of course, not good enough.
+Can we tell if the query parameter is sent by our API and not some 3rd party?
+This is **message authentication**.
+Per p. 452, we use Hash-based message-authentication codes (HMAC).
+
+```bash
+cargo add sha2
+cargo add hmac --features=std
+```
+
+We go back and forth with the `login()` function.
+Stripping it down to returning only `HttpResponse`.
+But that won't propogate upstream, to middleware chain, and error context.
+For this, we need to return a `Result`.
+So, Results go through middleware.
+We introduce `actix_web::error::InternalError`.
+
+We need to inject the HMAC secret still.
+That is done in Configurations...
+Now we need to verify the HMAC tag...
+I hope we don't just delete this all later for whatever reason.
+
+Now, we do some work in `login/get.rs`.
+We use the type system to make the query parameter optional,
+but it's fields are an all-or-nothing struct now.
+The tag is a byte slice though as a hex string.
+Need another crate to decode it...
+
+```bash
+cargo add hex
+```
+
+Now, create a verify method on the `QueryParams` struct that
+returns an error if all is good and an `Error` if issue Verifying.
+What do we do in the case someone did hijack?
+Let the user know, but render the page... without the buggy warning.
+
+Note that URLs are stored in browser history.
+Autocomplete can be a pain for this approach.
+Simply going to a webpage will cause an error then in our script.
+We want error messages to be **ephemeral**.
+That is, shown right before failed login attempt, not stored in the browser history.
+
+So, all of that and guess what...
+Query Parameters do not meet our requirements!!!
+We will use cookies.
+If the user sends invalid credentials,
+the POST request can set a cookie with the error message.
+The browser will send the cookie in the GET request.
+The GET returns the HTML form w/message and deletes the cookie.
+
+One-time notifications like this are called **flash messages**.
 
 ---
 

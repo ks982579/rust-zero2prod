@@ -1,5 +1,6 @@
 use actix_web::{dev::Server, web, App, HttpServer};
 // use sqlx::PgConnection;
+use secrecy::Secret;
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use std::net::TcpListener;
 use tracing_actix_web::TracingLogger;
@@ -58,6 +59,7 @@ impl Application {
             connection_pool,
             email_client,
             configuration.application.base_url,
+            configuration.application.hmac_secret,
         )?;
 
         // And we store information in Application struct
@@ -91,6 +93,7 @@ pub fn run(
     db_pool: PgPool,
     email_client: EmailClient,
     base_url: String,
+    hmac_secret: Secret<String>,
 ) -> Result<Server, std::io::Error> {
     // Wrap the connection in Smart Pointer!
     let db_pool: web::Data<PgPool> = web::Data::new(db_pool);
@@ -115,6 +118,7 @@ pub fn run(
             .app_data(db_pool.clone())
             .app_data(email_client.clone())
             .app_data(base_url.clone())
+            .app_data(web::Data::new(HmacSecret(hmac_secret.clone())))
     })
     //.bind("127.0.0.1:8000")?
     // .bind(address)? // just kidding, we need to listen, not bind
@@ -123,3 +127,6 @@ pub fn run(
     // Removed the `.await` here.
     Ok(server)
 }
+
+#[derive(Clone)]
+pub struct HmacSecret(pub Secret<String>);
