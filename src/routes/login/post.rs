@@ -19,7 +19,7 @@ pub struct FormData {
 pub enum LoginError {
     #[error("Authenication Failed")]
     AuthError(#[source] anyhow::Error),
-    #[error("---- Something went wrong ----")]
+    #[error("Something went wrong")]
     UnexpectedError(#[from] anyhow::Error),
 }
 
@@ -30,11 +30,20 @@ impl std::fmt::Debug for LoginError {
 }
 
 impl ResponseError for LoginError {
+    fn error_response(&self) -> HttpResponse<actix_web::body::BoxBody> {
+        let encoded_error = urlencoding::Encoded::new(self.to_string());
+        HttpResponse::build(self.status_code())
+            .insert_header((LOCATION, format!("/login?error={}", encoded_error)))
+            .finish()
+    }
+    // fn status_code(&self) -> StatusCode {
+    //     match self {
+    //         LoginError::UnexpectedError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+    //         LoginError::AuthError(_) => StatusCode::UNAUTHORIZED,
+    //     }
+    // }
     fn status_code(&self) -> StatusCode {
-        match self {
-            LoginError::UnexpectedError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            LoginError::AuthError(_) => StatusCode::UNAUTHORIZED,
-        }
+        StatusCode::SEE_OTHER
     }
 }
 

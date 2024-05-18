@@ -2688,6 +2688,32 @@ Of course, we used the foot-gun earlier and stuffed all that authentication logi
 into the newsletter module.
 Yes, we need to pull it out now.
 
+Ok, after a painful base64 not copied correcly error...
+Back on track.
+Instead of cutting the screen, we should redirect the user to try again to log in.
+A niave approach is to attach HTML in the body of the `error_response()` method
+of the `ResponseError` implementation for `LoginError`.
+Why is this niave?
+We are duplicating the login page making updates to that page more cumbersome.
+Also, apparently the user is prompted to confirm form resubmission if they
+try to refresh the page.
+
+The second issue can be solved if the user lands on a GET endpoint.
+The first issue can be solved by reusing the login page.
+These can be accomplished by redirecting to the login page again.
+Do that there...
+The issue is now the error message won't show, we don't know what we did wrong.
+
+The value of the `LOCATION` header determins the URL the user is redirected to.
+But it can also specify query parameters.
+
+```bash
+cargo add urlencoding
+```
+
+We can update the redirect now to include an error as a query param.
+Then, we update the GET page based on that query param.
+
 ---
 
 ## Ch. 11 - Fault-tolerant Workflows
