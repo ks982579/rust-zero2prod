@@ -2783,6 +2783,39 @@ The GET returns the HTML form w/message and deletes the cookie.
 
 One-time notifications like this are called **flash messages**.
 
+We start with a test to understand cookie behaviour.
+
+Actually, just in `tests/api/login.rs`,
+we try to write a test to check the endpoint returns a 303.
+
+```rust
+use crate::helpers::spawn_app;
+
+#[tokio::test]
+async fn an_error_flash_message_is_set_on_failure() {
+    // Arrange
+    let app = spawn_app().await;
+
+    // Act
+    let login_body = serde_json::json!({
+        "username": "random-username",
+        "password": "random-password"
+    });
+    let response = app.post_login(&login_body).await;
+
+    // Assert
+    assert_eq!(response.status().as_u16(), 303);
+}
+```
+
+You'll actually get a 200 response.
+This is because `reqwest` will make the hop automatically,
+and then return the last response, a 200 from the login page.
+We need to tell the `Client` what to do...
+
+And just like that, yes, we are removing the query parameters.
+That's ok, just spent a couple hours implementing all that...
+
 ---
 
 ## Ch. 11 - Fault-tolerant Workflows
