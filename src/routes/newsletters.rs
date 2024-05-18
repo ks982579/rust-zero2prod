@@ -178,10 +178,29 @@ async fn validate_credentials(
     //         .map_err(PublishError::UnexpectedError)?,
     // );
 
+    let mut user_id = None;
+    let mut expected_password_hash = Secret::new(
+        "$argon2id$v=19$m=15000,t=2,p=1$\
+            gZiV/M1gPc22ElAH/Jh1Hw$\
+            CWOrkoo7oBQ/iyh7uJ0lO2aLEfrHwTWllSAxT0Rno"
+            .to_string(),
+    );
+
+    if let Some((stored_user_id, stored_password_hash)) =
+        get_stored_credentials(&credentials.username, &pool)
+            .await
+            .map_err(PublishError::UnexpectedError)?
+    {
+        user_id = Some(stored_user_id);
+        expected_password_hash = stored_password_hash;
+    }
+
+    /* Upgrading to the above logic...
     let (user_id, expected_password_hash) = get_stored_credentials(&credentials.username, &pool)
         .await
         .map_err(PublishError::UnexpectedError)?
         .ok_or_else(|| PublishError::AuthError(anyhow::anyhow!("Unknown username.")))?;
+    */
 
     // let (expected_password_hash, user_id) = match row {
     //     Some(row) => (row.password_hash, row.user_id),
@@ -214,7 +233,11 @@ async fn validate_credentials(
     // spawn_blocking is fallible - we have nested result
     .context("Failed to spawn blocking task.")
     .map_err(PublishError::UnexpectedError)??;
-    Ok(user_id)
+    // The below only set to `Some` if credentials are found in DB.
+    // So, if default password somehow matches provided,
+    // Still won't authenticate non-existing user (Should add test?).
+    user_id.ok_or_else(|| PublishError::AuthError(anyhow::anyhow!("Unknown username.")))
+    // Ok(user_id)
 }
 
 /// `PasswordHash` has a lifetime, so we must move ownership of

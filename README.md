@@ -2595,6 +2595,57 @@ p. 422 10.2.5 = User Enumeration
 
 Adding tests case to reject non-existing user!
 
+You can run those new tests to see that an invalid password takes about 10ms to respond.
+This is good for **timing attack**, from the broad class of side-channel attacks.
+Author covers it on p. 424...
+
+We want to make an invalid username take as much time as an invalid password.
+This way, attackers can't use the time difference to find valid usernames. 
+
+Implementing code on pdf p. 444.
+Looks like providing phony information by default.
+This means, it'll still do the password hashing,
+taking the same time with an incorrect username and with a valid. 
+
+### 10.3 Is it Safe?
+
+p. 446
+
+The author covers a few topics, such as we need to use HTTPS
+to encrypt our Basic Authentication Scheme credentials.
+We should include a way to reset passwords (in the future).
+And there are three important categories of what can make requests to our endpoints.
+There is good information in the book, but going to focus on what is relevant to me here...
+
+One category is person interacting with a web browser.
+HTTP is stateless, it cannot remember that you have logged in.
+Therefore, Basic Auth requires the client to give credentials on **every request**.
+The backend can remember authenticaed users with **sessions**.
+The user authenticates once and the server generates an authenticates session token.
+The token is stored in the browser as a secure cookie.
+They are designed to expire. 
+This provides an additional layer of security, allowing a forced log out to delete the token. 
+This is called **Session-Based Authentication**.
+
+You can see then we probably need a log in form.
+Many websites allow to log in with a Social Profile. 
+This relies on **Identity Federation**.
+Authenitcation is delegated to a third-party **identity provider**,
+and we get some information like email address, name, etc...
+This would dive into the OAuth2 standard and perhaps OpenID Connect.
+Probably beyond the scope of this project.
+
+Now we will buiild some UI components so users can log in and create a session.
+Buckle up!
+
+### 10.5 Login Forms
+
+p. 429
+
+Firstly, how do we return HTML pages from the API?
+Start by creating a `home` module...
+
+
 ---
 
 ## Ch. 11 - Fault-tolerant Workflows
