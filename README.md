@@ -2,7 +2,7 @@
 
 ## In the Beginning...
 
-After setting up with cargo, we can 
+After setting up with cargo, we can
 
 ```bash
 cargo install cargo-watch
@@ -13,7 +13,7 @@ cargo watch -x check -x test -x run
 
 This runs cargo check after every code change.
 The latter command is a chain of commands, to check, test, and run.
-The commands stop if the chain breaks. 
+The commands stop if the chain breaks.
 This is the _inner development loop_.
 
 To measure code coverage:
@@ -35,7 +35,7 @@ cargo fmt -- -check
 ```
 
 It's possible to configure Clippy inline or in a `clippy.toml` file.
-Rust formatter can also be configured with a `rustfmt.toml` file as well. 
+Rust formatter can also be configured with a `rustfmt.toml` file as well.
 And if security is a concern:
 
 ```bash
@@ -53,11 +53,11 @@ So do not put into production without critical features such as that.
 
 ### Signing up
 
-Starting our first server and we use the `HttpServer` struct that handles all _transport level_ concerns. 
+Starting our first server and we use the `HttpServer` struct that handles all _transport level_ concerns.
 Then, the `App` handles the application logic, routing, middlewares, request handlers, etc...
 You can checkout [Actix-Web | docs.rs/actix-web](https://docs.rs/actix-web/4.0.1/actix_web/web/fn.get.html) docs.
-For context, the `App::new().route(self, path: &str, route: Route) -> Self`. 
-This means that `web` is a module, and `web::get() -> Route` is a function in that module that returns a `Route`. 
+For context, the `App::new().route(self, path: &str, route: Route) -> Self`.
+This means that `web` is a module, and `web::get() -> Route` is a function in that module that returns a `Route`.
 
 Opened a can of worms here...
 [Route | docs.rs](https://docs.rs/actix-web/4.0.1/actix_web/struct.Route.html) has many methods.
@@ -65,11 +65,11 @@ We merely use the `.to<F, Args>(self, handler: F) -> Self` method to call a hand
 The `Args` parameter is passed into the handler, which should be like a function type, but is `F: Handler<Args>` in the docs.
 
 There's another concept of **Guards**, which specify a condition to be met before passing over to handler.
-So a bit like middleware. 
+So a bit like middleware.
 How is this relevant?
 The `web::get()` is short for `Route::new().guard(guard::Get())`.
 In the docs, you can see (sort of) the macro call to create this.
-This essentially says pass the request to the handler iff it is an HTTP GET method. 
+This essentially says pass the request to the handler iff it is an HTTP GET method.
 
 Before I change everything to be more realistic with the health check, this is the ground work:
 
@@ -102,7 +102,7 @@ With the health check endpoint, test with `curl -v localhost:8000/health-check` 
 
 Now, we created the "health-check" endpoint that returns something which implements the `Responder` trait.
 It's worth noting the intention of said trait [Responder](https://docs.rs/actix-web/4.0.1/actix_web/trait.Responder.html),
-has a method called `respond_to`, which returns an `HttpResponse`. 
+has a method called `respond_to`, which returns an `HttpResponse`.
 So we can cut out the middleman and just return the `HttpResponse`...
 
 ```rust
@@ -128,18 +128,19 @@ That would be a unit test though.
 It doesn't check that it is invoked with a GET request, or that the endpoint/URL is correct.
 
 What do we want with our integration tests?
-+ Highly decoupled from technology underpinning API implementation (in case we change frameworks)
-+ We want to test on our server... but cannot write a function that returns `App` due to technical limitations
+
+- Highly decoupled from technology underpinning API implementation (in case we change frameworks)
+- We want to test on our server... but cannot write a function that returns `App` due to technical limitations
 
 We want to throw integration tests into a separate directory, but that requires some setup.
-Fix the `Cargo.toml` file. Note TOML syntax. 
+Fix the `Cargo.toml` file. Note TOML syntax.
 Specifying the bin of 'src/main.rs' isn't completely necessary,
 but spells everything out to provide a complete picture in the configuration.
 
 The book didn't have the library name specified...
 But I named my project "rust-zero2prod", so it wasn't coming in _automagically_.
 
-Out tests require `reqwest`, a higher-level HTTP client. 
+Out tests require `reqwest`, a higher-level HTTP client.
 Add with `cargo add --dev reqwest` to list as "dev-dependencies".
 This means it will not complie with final application binary.
 
@@ -185,7 +186,7 @@ This means we need to store that information to pass around the tests though.
 
 We consider many things, namely what information we receive and how to receive it.
 You can accept the "Content-Type: application/x-www-form-urlencoded".
-I would rather use JSON... but the book goes in this direction. 
+I would rather use JSON... but the book goes in this direction.
 It uses percent encoding where `%20` is a space and `%40` is the at symbol.
 If the information is provided, great; else, return 400 status.
 Build up the test first.
@@ -212,9 +213,9 @@ Serde is agnostic with respect to data formats.
 Once your type (struct) implements `Serialize`, you can use any _concrete_ implementation of it.
 And most, if not all, commonly used data formats can be found on crates.io.
 
-It is fast thanks to a process called _monomorphization_. 
+It is fast thanks to a process called _monomorphization_.
 It (compiler) makes copies of the generic function with concrete types.
-This is also called zero-cost abstraction. 
+This is also called zero-cost abstraction.
 Further, other languages leverage "runtime reflection" to fetch information about types to (de)serialize.
 Rust requires everything up front and does not provide runtime reflection.
 
@@ -308,11 +309,10 @@ async fn subscribe_returns_200_for_valid_form_data() {
 I try to add the types manually so I know what they are and can refer back.
 If you have a better memory or an more proficient than I, you may leave them off and the compiler will figure it out... mostly.
 
-
 The `query!` macro verifies the returned struct is valid at run time.
 It returns an anonymous record type and needs the DATABASE_URL
 to verify with, which must be supplied in the `.env` file.
-Some how that query reads the `.env` file and finds what it is looking for. 
+Some how that query reads the `.env` file and finds what it is looking for.
 It's that or we re-export the environment variable every time...
 
 Actix-Web gives us ability to pass other pieces of data around, not related to the lifecycle of a single
@@ -320,7 +320,7 @@ incoming request, called the _application state_.
 Do this by adding your _thing_ in the `App::new().app_data(thing)` method!
 
 The `HttpServer` returns worker processes for each available core on the machine.
-Each runs its own copy of application built by this by calling the same closure. 
+Each runs its own copy of application built by this by calling the same closure.
 So, we need **the same connection** for each copy of App.
 But `PgConnection` doesn't implement `Clone` because it sits on a non-cloneable system, TCP connection with Postgres.
 
@@ -344,28 +344,28 @@ cargo add chrono --no-default-features --features clock
 
 Setting up the `subscribe` API with a `query!` to the database still gives and error.
 More specifically, the `.execute(connection.get_ref().deref())` does not implement `sqlx_core::executor:Executor<'_>`.
-Only the `&mut PgConnection` implements that trait because sqlx has an asynchronous interface. 
+Only the `&mut PgConnection` implements that trait because sqlx has an asynchronous interface.
 However, you cannot run multiple queries _concurrently_ over the same dabase connection.
 Think of a mutable reference as a unique reference.
-It guarantees to `execute` that they have exclusive access the PgConnection because Rust rules only allows one mutuable reference at a time. 
+It guarantees to `execute` that they have exclusive access the PgConnection because Rust rules only allows one mutuable reference at a time.
 
-The problem, `web::Data` will not give us mutuable access to application state. 
+The problem, `web::Data` will not give us mutuable access to application state.
 Using a lock (Mutex) would allow for synchronise access to underlying TCP socket, leveraging interior mutability.
 But not a great solution.
 
-Instead of `PgConnection`, `PgPool` is a pool of connections to a Postgres database. 
+Instead of `PgConnection`, `PgPool` is a pool of connections to a Postgres database.
 It implements the `Executor` trait, and uses a kind of interior mutability.
 When you run a query with `&PgPool`, sqlx borrows a PgConnection from the pool to execute the query,
 or wait for one to free up,
 or create a new one!
-This increases number of concurrent queries our application can run, improving resiliency. 
+This increases number of concurrent queries our application can run, improving resiliency.
 A slow query will not impact the performance of all incoming requests by locking the connection.
 
 We must begin our update in `main.rs`.
 Then, we update the `run()` function in `startup.rs`.
 Then the endpoint for subscriptions.
 
-The `health_check.rs` tests also need to be updated. 
+The `health_check.rs` tests also need to be updated.
 I guess the idea is to create a new stuct to hold necessary information and pass around.
 We will call it `TestApp`.
 
@@ -378,16 +378,17 @@ when I tried to pass in a clone.
 The test _intent_ is clear now,
 and we removed most biolerplate of establishing the DB connection (in the test itself).
 I can happily report that my tests also passed.
-But they will only pass once because the data persists in the database. 
+But they will only pass once because the data persists in the database.
 And one of the constraints on the data is a unique field.
 
 There are 2 ways to handle:
+
 1. Wrap each tests in an SQL transaction and rollback at end of test.
 2. spin up new database for each integration test.
 
 The former would be much faster but for our integration tests,
 unsure how to _capture_ the connection in the SQL transaction context.
-The latter is slower but will be easier to implement. 
+The latter is slower but will be easier to implement.
 This means creating a new logical database with a unique name and running migrations on it.
 To do this, we randomize the database name with UUID.
 But then we need to not pass that into the connection, so we create a new method in configurations.
@@ -403,8 +404,8 @@ The drop function could delete the database, else would we not rack up databases
 
 The book addresses the point above, saying we can add a clean-up step.
 But if performance starts to suffer from the hundreds of near empty test databases,
-we can just create a new instance. 
-This database is only for testing after all. 
+we can just create a new instance.
+This database is only for testing after all.
 
 ## Telemetry
 
@@ -415,14 +416,16 @@ There are too many "unknown unknowns".
 That's why we need to collect telemetry data.
 
 Things to consider:
-+ What happens if we lose database connection? Will it try to reconnect or is that it?
-+ What happens if an attacker tries passing malicious payloads into POST body? 
 
-Those are actually **known unknowns**, we are aware but they are unmanaged. 
+- What happens if we lose database connection? Will it try to reconnect or is that it?
+- What happens if an attacker tries passing malicious payloads into POST body?
+
+Those are actually **known unknowns**, we are aware but they are unmanaged.
 Unknown unknowns can happen when:
-+ system pushed beyond usual operating conditions.
-+ multiple components failures at same time.
-+ No changes introduced for long time (system not restarted for while and memory leaks emerge).
+
+- system pushed beyond usual operating conditions.
+- multiple components failures at same time.
+- No changes introduced for long time (system not restarted for while and memory leaks emerge).
 
 They are similar in that they are nearly impossible to reporduce outside live environments.
 And we cannot attach a debugger to a process in production.
@@ -435,14 +438,15 @@ For this we need to collect _high-quality_ telemetry data.
 
 ### Logging
 
-Logs are the most common type of telemetry data. 
+Logs are the most common type of telemetry data.
 Rust has a [log | crates.io](https://crates.io/crates/log) crate.
 It has 5 macros, each emitting a log at a different level:
-+ error = used if an operation fails (user impact).
-+ warn
-+ info = used to record success of operation.
-+ debug
-+ trace = verbose and used to record things like when TCP packet is received.
+
+- error = used if an operation fails (user impact).
+- warn
+- info = used to record success of operation.
+- debug
+- trace = verbose and used to record things like when TCP packet is received.
 
 But wait, Actix-Web provides a logger middleware?
 We add to `startup.rs`.
@@ -456,14 +460,14 @@ We add to `startup.rs`.
 // {...}
 ```
 
-Middleware is added with the `.wrap()` method. 
+Middleware is added with the `.wrap()` method.
 But, what happens to the logs when they are generated?
 If you start the application, still nothing in the consolse...
 
-The book goes into the "Facade Pattern", 
+The book goes into the "Facade Pattern",
 a structural design pattern.
 I have the book, "Design Patterns", but there's also [Refactoring.guru](https://refactoring.guru/design-patterns).
-This pattern provides an interface to a library to simplify working with it. 
+This pattern provides an interface to a library to simplify working with it.
 
 The `log` crate leverages the facad pattern.
 Basically, you have the tools and you get to decide how logs are displayed.
@@ -483,7 +487,7 @@ It should print logs in the following format to terminal:
 [<timestamp> <level> <module path>] <log message>
 ```
 
-So, you pass in something like `RUST_LOG=debug cargo run` so it can know what to print out. 
+So, you pass in something like `RUST_LOG=debug cargo run` so it can know what to print out.
 Sending `RUST_LOG=zero2prod` would filter out dependencies.
 Update your main function!
 
@@ -495,7 +499,7 @@ We update now the subscriptions endpoint...
 
 Another quote, "We will happily settle for an application that is _sufficiently_ observable
 to endable us to deliver the level of service we promised to our users."
-This implies that we should debug errors with little effort. 
+This implies that we should debug errors with little effort.
 If a user gives us an email address and says, "I tried to sign up and got an error... please help,"
 could we help them?
 Currently, we would try searching logs for the email but would have to ask the user for more information.
@@ -516,7 +520,7 @@ We _could_ remove actix_web's Logger and write our own middleware with a request
 There would be such a rewrite effort, from Actix-Web to imported crates that this approach cannot scale.
 Basically, "Logs are the wrong abstraction."
 
-So, we have been using the wrong tool. 
+So, we have been using the wrong tool.
 We migrate from `log` to `tracing`
 
 This is good for an endpoint, but Actix-Web's Logger middleware isn't aware of the request id.
@@ -525,14 +529,14 @@ We _could_ remove actix_web's Logger and write our own middleware with a request
 There would be such a rewrite effort, from Actix-Web to imported crates that this approach cannot scale.
 Basically, "Logs are the wrong abstraction."
 
-So, we have been using the wrong tool. 
+So, we have been using the wrong tool.
 We migrate from `log` to `tracing`.
 
 ```bash
 cargo add tracing --features log
 ```
 
-If anything, I'm getting good at importing crates. 
+If anything, I'm getting good at importing crates.
 Because we use the `log` feature, we can do a find-and-replace for "tracing".
 But... we want to use tracing _span_ to represent the whole HTTP request.
 
@@ -558,7 +562,7 @@ pub async fn subscribe(
 ```
 
 What the hell is a [`tracing::span` | docs.rs](https://docs.rs/tracing/latest/tracing/span/index.html)?
-The docs say a **span** represents a period of time the program was executing in a _particular_ context. 
+The docs say a **span** represents a period of time the program was executing in a _particular_ context.
 You create the span and enter it in 2 separate steps in the manual implementation.
 
 The book warns not to actually use `request_span.enter()` in async functions.
@@ -567,7 +571,7 @@ Also note how we attache values to the span context with the `%`.
 This tell `tracing` to use the `Display` implementation for logging.
 `tracing` allows us to associate structured information to spans as collection of key-value pairs.
 See [tracing docs | crates.io](https://crates.io/crates/tracing) for more info.
-They say the guard won't exit until the async block is complete. 
+They say the guard won't exit until the async block is complete.
 This leads to confusing, and incorrect, output.
 
 Why?
@@ -582,8 +586,8 @@ It enters the span when the future is polled,
 and exits the span when the future is parked.
 
 Updating subscriptions endpoint,
-we tuck the instrument method into the `sqlx::query`. 
-We need to fix the `main()` function still, it's using `env_logger`. 
+we tuck the instrument method into the `sqlx::query`.
+We need to fix the `main()` function still, it's using `env_logger`.
 Following a facade pattern like `log`,
 implementing the `Subscriber` trait exposes many methods to manange the lifecycle of a `Span`.
 
@@ -598,10 +602,10 @@ We get another trait here called `Layer` that allows us to build a processing pi
 Check out [tracing-subscriber | crates.io](https://crates.io/crates/tracing-subscriber).
 The `Registry` struct implements the `Subscriber` trait!
 
-We will also use `tracing-bunyan-formatter` becauce it implements metadata inheritance. 
+We will also use `tracing-bunyan-formatter` becauce it implements metadata inheritance.
 When you have this, update your main function (finally!).
 
-Wow, So if you update the `main()` and curl "health-check"... you won't see anything. 
+Wow, So if you update the `main()` and curl "health-check"... you won't see anything.
 I don't think that endpoint is set with tracing.
 But create a new user...
 
@@ -613,7 +617,7 @@ I think it hits the console in Json format.
 When a Span is closed, JSON message is printed to the console.
 But an issue arises because our terminal only shows logs directly emitted by our application.
 Basically, tracing's log feature flag ensures a log record is emitted when tracing even happens.
-But the opposite is not true. 
+But the opposite is not true.
 To get this...
 
 ```bash
@@ -649,19 +653,19 @@ It won't get everything though (like logs), which you may remove manually.
 ### Clean up
 
 Starting with the `main()` function, we want to refactor.
-Each function should have like one duty. 
+Each function should have like one duty.
 Then, we split the functions into a new "telemetry.rs" file.
 
-They are moved out so we can use them for our test suite as well. 
+They are moved out so we can use them for our test suite as well.
 Rule of thumb; everything used in the application should be reflected in integration tests.
-We then update the `spawn_app()` function in our testing suite. 
+We then update the `spawn_app()` function in our testing suite.
 However, this app is called multiple times, once per test.
 As mentioned before, we only want to initialize our subscriber once.
 I ran the tests and only one passes, the rest will fail.
 
 The book mentions we could use `std::sync::Once.call_once()` method.
 But we may need to use our subscriber after initialization.
-That means we will want `std::sync::SyncOnceCell`, which is not yet stable. 
+That means we will want `std::sync::SyncOnceCell`, which is not yet stable.
 Doing a little digging, I think it's moved to `std::cell::OnceCell`.
 And the docs say for a thread-safe version use `std::sync::OnceLock`.
 
@@ -669,14 +673,14 @@ I want to try use this instead.
 Ok, I read the [`OnceLock` docs | doc.rust-lang.org](https://doc.rust-lang.org/std/sync/struct.OnceLock.html),
 this is a thread-safe cell that can only be written to once.
 So, you call `get_or_init(fn -> F) -> &T` which either sets the cell with you function,
-or gets you a reference of it. 
+or gets you a reference of it.
 If it doesn't work then go back to page 118 to setup with correct 3rd-party package.
 
-Cargo test by default eats output unless a test fails. 
+Cargo test by default eats output unless a test fails.
 You can run `cargo test -- --nocapture` to opt back into viewing those logs.
 We will now add a new parameter to `get_subscriber` to allow customisation of what
-_sink_ logs should be written to. 
-The internet says, "A log sink is a place where logs from a system or application are 
+_sink_ logs should be written to.
+The internet says, "A log sink is a place where logs from a system or application are
 collected and stored for later analysis."
 Back to "telemetry.rs"!
 
@@ -687,9 +691,9 @@ something straight out of the Nomicon...
 It is basically like, you know when you return a reference from a function,
 the function requires the lifetime to ensure it isn't returning like a _null_ reference?
 This is syntax to help pass in a lifetime when needed by traits.
-For the trait, it is read "for all choices of `'a`..." and produces an infinite list of trait bounds 
-that our trait, usually a function, must satisfy. 
-Adding an additional parameter to this function means passing `std::io::stdout` into it 
+For the trait, it is read "for all choices of `'a`..." and produces an infinite list of trait bounds
+that our trait, usually a function, must satisfy.
+Adding an additional parameter to this function means passing `std::io::stdout` into it
 in the `main()` function also.
 
 What is the [`MakeWriter`](https://docs.rs/tracing-subscriber/latest/tracing_subscriber/fmt/trait.MakeWriter.html) trait?
@@ -698,7 +702,7 @@ How do we handle this in our test suite now?
 We initialize the subscriber based on `TEST_LOG` environment variable coming in.
 Technically the `std::io::{stdout, sink}` are different types,
 making it challenging to return a value and set it.
-So we do this work-around of setting everything in the if statement. 
+So we do this work-around of setting everything in the if statement.
 
 So, run `TEST_LOG=true cargo test health_check_works | bunyan`...
 You can _prettify_ output if you `cargo install bunyan` and pass output to it (i guess).
@@ -719,7 +723,7 @@ It also takes care to use `Instrument::instrument` if it is applied to asynchron
 
 What is the [`tracing::instrument` | docs.rs](https://docs.rs/tracing/latest/tracing/attr.instrument.html) macro?
 Coming from a _Python_ background, I think of it like a decorator.
-The docs suggest it is like a wrapper to create and enter a tracing span every time the function is called. 
+The docs suggest it is like a wrapper to create and enter a tracing span every time the function is called.
 We have implemented `skip()`, but there's also a `skip_all` which is not invoked like a function.
 
 I lost a bunch of notes, that's great...
@@ -731,7 +735,7 @@ You wrap your sensitive value in a struct which updates the `Debug` trait to say
 
 Try wrapping the database password in the configuration Rust file.
 It ends up breaking the connection string functions.
-This is because secrecy has also removed the `Display` trait. 
+This is because secrecy has also removed the `Display` trait.
 We need to bring in the `ExposeSecret` trait, see the file for example.
 
 This also means in the `main.rs` we must also expose the secret.
@@ -739,7 +743,7 @@ The tests also need to be updated, since they use a similar function that now re
 
 ### Adding Middleware!!!
 
-Logs should be labeled with a reqeust id. 
+Logs should be labeled with a reqeust id.
 We can bring in another crate.
 
 ```bash
@@ -752,20 +756,21 @@ Note that we create a `request_id` on the `subscribe()` function that will overr
 Remove it.
 
 As a side note:
-+ `tracing-actix-web` is OpenTelemetry-compatible. So, if you brought in `tracing-opentelemetry`,
-you could ship your spans to an OpenTelemetry-compatible service!
-+ `tracing-error` can make error types better for troubleshooting.
+
+- `tracing-actix-web` is OpenTelemetry-compatible. So, if you brought in `tracing-opentelemetry`,
+  you could ship your spans to an OpenTelemetry-compatible service!
+- `tracing-error` can make error types better for troubleshooting.
 
 ## Going Live?
 
 This section will be very handy as we learn to dockerize our application and deploy it (to DigitalOcean).
 Committing to the main brach will _automatically_ trigger the deployment of the latest version of our application.
-The focus is on _philosphy_ because there are too many moving parts. 
+The focus is on _philosphy_ because there are too many moving parts.
 
 ### Dockerization of our App
 
 First task is to write a Dockerfile.
-Think of it like a recipe for the application environment. 
+Think of it like a recipe for the application environment.
 Getting our database ready is more trouble than you'd think.
 We need to run the following:
 
@@ -794,16 +799,16 @@ However, it won't work because of the connection with Postgres.
 In `main()` we use `connect_lazy`, which is not a future, so we don't await it.
 
 We will also have issues with using '127.0.0.1' as our host address.
-We instruct our application to only accept connections coming from the same machine. 
+We instruct our application to only accept connections coming from the same machine.
 Using '0.0.0.0' instructs our application to accept connections from _any_ network interface.
-We will use that for Docker only, and leave localhost for local development. 
+We will use that for Docker only, and leave localhost for local development.
 Making adjustments to `configurations.rs` and `configuration.yaml`.
 
 #To differentiate between the environments, we make our configuration _hierarchical_.
 So, there isn't a lot more we can do with what we currently have.
 The idea is to create an environment varialbe, `APP_ENVIRONMNET`,
 that we can set to "production" or "local".
-Based on its value, we load environment-specific configuration files. 
+Based on its value, we load environment-specific configuration files.
 
 We can start with updates to the `configuration::get_configuration()` function.
 Ok, we added an Enum, implemented some traits and created some new files.
@@ -840,14 +845,15 @@ However, we leave it be for the moment... ok.
 ### Optimise Docker Image
 
 The actual host machine won't really run `docker build`.
-Instead, it'll use `docker pull` to _download_ a prebuilt image. 
+Instead, it'll use `docker pull` to _download_ a prebuilt image.
 To use an image we pay for its download cost.
 That is directly related to _size_.
 
-Wow, I am officially very impressed. 
+Wow, I am officially very impressed.
 Somehow the image is just 97.2MB currently and the build time is very fast.
 I didn't make changes to the source code so it's just pulling from cache,
-but then the post build after compilation is quick. 
+but then the post build after compilation is quick.
+
 ```bash
 docker images zero2prod  # it will display the size
 ```
@@ -860,11 +866,12 @@ Ignoring unnecessary files and directories will greatly reduce build size.
 But Rust's binaries are _statically linked_ (mostly).
 This means we do not need to keep source code nor intermediate compilation artifacts.
 We will create a multi-stage build in Docker:
+
 1. Builder stage to generate a compiled binary.
 2. A Runtime stage to run said binary.
 
 The `runtime` is our final image.
-The `builder` stage is thrown away at the end of the build. 
+The `builder` stage is thrown away at the end of the build.
 Will we try to build again?
 
 ```bash
@@ -887,13 +894,13 @@ It's out of scope because you would have to cross-compile to linux-musl.
 The book (p. 150) also suggest "stripping symbols" from the binary and provides a link for more information.
 
 Also worth noting that because of caching, the order of operations is important.
-Docker stops pulling cache once it hits a change. 
-So, things that change often, like source code, should be written as low as possible. 
+Docker stops pulling cache once it hits a change.
+So, things that change often, like source code, should be written as low as possible.
 
 Cargo is also a little weird.
 Most languages copy in a "lock-file" to build the dependencies.
 Then you copy in the source code and build the project.
-The `cargo build` is unfortunately a one-stop-shop for all building. 
+The `cargo build` is unfortunately a one-stop-shop for all building.
 
 The author made a tool, [`cargo-chef`| github](https://github.com/LukeMathWalker/cargo-chef)
 that works nicely into docker containers.
@@ -904,15 +911,15 @@ There's explicit instructions as well.
 p. 152 / 171
 
 I tried to sign up on DigitalOcean, they charged my credit card, and then said they needed more information.
-They reverted the money, but I still need to wait 24 hours for a manual review of my account. 
+They reverted the money, but I still need to wait 24 hours for a manual review of my account.
 Try to continue whilst under review.
 
-DigitalOcean uses what they call an _App Spec_ file. 
+DigitalOcean uses what they call an _App Spec_ file.
 
 p. 154...
 
 DigitalOcean also takes care of HTTPS for us?
-That's actually very nice. 
+That's actually very nice.
 
 We will need to _provision_ a database.
 
@@ -957,10 +964,11 @@ our database does not handle currently.
 
 In a Crazy turn of events, I filed a couple of tickets and the platform recognized my legitimate interest in their platform.
 I switched to using PayPal, as I do not think that the bank / debit card I was using was working for them.
-If you are turned down, don't give up. 
+If you are turned down, don't give up.
 Or just use PayPal from the start.
 
 Information about linking Github and DigitalOcean isn't exactly forthcoming.
+
 1. Log into DigitalOcean
 2. On left side pannel, under "MANAGE", click "App Platform".
 3. The first button should say "Create App" or something, which begins process for linking.
@@ -985,8 +993,8 @@ docts apps list
 
 This spins up a droplet or whatever.
 For more information on the CLI, [`doctl` reference | digitalocean.com](https://docs.digitalocean.com/reference/doctl/reference/).
-Watching the deployment build logs is exciting. 
-But note that this process can take a while as it compiles your project. 
+Watching the deployment build logs is exciting.
+But note that this process can take a while as it compiles your project.
 And then it goes live :)
 
 ```bash
@@ -1009,7 +1017,7 @@ This terminated the build from the push, and started another build.
 We give it a while, updating project to take in environment variables from everywhere.
 Like a while...
 
-In the app, under settings, there's a "Components" tab. 
+In the app, under settings, there's a "Components" tab.
 You can find the "Connection String", which is quite long.
 Notice it has `postgresql://newletter:.../newsletter?sslmode=require`.
 We must refactor our `DatabaseSettings` now for this.
@@ -1026,7 +1034,7 @@ Updating DataBase Settings to trace database as well with a new `LevelFilter`.
 
 Then, we update the `spec.yaml` with loads of environment variables.
 There's a [How To | digitalocean.com](https://docs.digitalocean.com/products/app-platform/how-to/update-app-spec/) section.
-Still looking for docs for this app spec tho. 
+Still looking for docs for this app spec tho.
 
 Here's what you do:
 
@@ -1039,7 +1047,7 @@ git push origin main
 
 That will trigger a new deployment.
 
-The last thing to do is to push our migrations. 
+The last thing to do is to push our migrations.
 Note, it's a small note in the book, but you must disable "Trusted Sources" to push migations locally.
 The database will not connect with you else.
 You can do this from your app's settings.
@@ -1064,28 +1072,31 @@ We want a name and email, and should validate that data.
 
 We aren't checking passports, so we can settle on the name not being empty.
 But what about SQL injections or other attacks?
-+ Denial of Service
-+ Data Theft
-+ Phishing
+
+- Denial of Service
+- Data Theft
+- Phishing
 
 A "Layered Security Approach" is also called _defense in depth_.
 We cannot handle every threat, but can mitigate risk substantially by introducing measures on multiple levels.
-+ input validation
-+ parametrised queries
-+ escaping parametrised input in emails
-+ etc...
+
+- input validation
+- parametrised queries
+- escaping parametrised input in emails
+- etc...
 
 What validation can we perform on names?
-+ enforce maximum length, 256 characters should be plenty.
-+ Reject troublesome characters such as `/()"<>\{}`.
+
+- enforce maximum length, 256 characters should be plenty.
+- Reject troublesome characters such as `/()"<>\{}`.
 
 Of course, Rust has a small issue with Strings because... Strings are complicated.
 I've seen many videos, but this [UTF-8 article | wikipedia.org](https://en.wikipedia.org/wiki/UTF-8) explains UTF-8 nicely.
-A "grapheme", which is the actual smallest unit of writing (a letter), can be comprised of 1 to 4 bytes. 
+A "grapheme", which is the actual smallest unit of writing (a letter), can be comprised of 1 to 4 bytes.
 Some graphemes, like "å" are compose of two character!
 This saves space, not storing the unnecessary trailing 3 bytes all of the time, but makes it hard to... traverse strings.
 
-My understanding is the first byte encodes the length of the character, 
+My understanding is the first byte encodes the length of the character,
 and ajoining bytes begin with `10xxxxxx`.
 
 ```bash
@@ -1093,7 +1104,7 @@ cargo add unicode-segmentation
 ```
 
 We put it into our endpoint but then the book discusses local and global validation approaches.
-We have a validation function, but using it doesn't scale well. 
+We have a validation function, but using it doesn't scale well.
 We need a _parsing function_ to tranfrom unstructured data into structured data.
 
 ### Type-Driven Development
@@ -1105,7 +1116,7 @@ And "Domain Modelling Made Functional" by Scott Wlaschin is a good book for a de
 
 We created an `.inner_ref()` method which works very well.
 However, Rust library has a trait called `AsRef`.
-You use it when you want a reference to something that is, or is similar, to what  you have.
+You use it when you want a reference to something that is, or is similar, to what you have.
 
 A popular technique / pattern is something like:
 
@@ -1122,14 +1133,14 @@ functions take arguments `P: AsRef<Path>` instead of forcing the user to convert
 Examples to convert to `Path` could be from `String`, `PathBuf`, `OsString`, etc...
 
 So, we update our things and now there's an `hyper::Error(IncompleteMessage)` error.
-This means the API is terminating the requst processing abruptly and is not graceful. 
+This means the API is terminating the requst processing abruptly and is not graceful.
 This is because we panic when the parsing fails.
-Panicing is for **unrecoverable** errors. 
-If you application panics in response to user input, it's probably a bug. 
+Panicing is for **unrecoverable** errors.
+If you application panics in response to user input, it's probably a bug.
 
 In the foot-note of page 182, the author states that Actix-Web is resilient to crashing.
-A panic will not crash the whole application, hopefully just one of the workers. 
-Also, it will just spawn a new worker to replace the ones that failed. 
+A panic will not crash the whole application, hopefully just one of the workers.
+Also, it will just spawn a new worker to replace the ones that failed.
 
 The `Result<T, E>` type is used when a return type is _fallible_.
 
@@ -1140,7 +1151,7 @@ cargo add claims
 ```
 
 Regular `assert!(result.is_ok())` only prints that an assertion failed during testing.
-It doesn't print the error message which can be critical. 
+It doesn't print the error message which can be critical.
 You could match first and print... or download this package.
 It has nice features such as:
 
@@ -1158,7 +1169,7 @@ With that, we can add unit tests to our `src/domain.rs` file.
 They aren't exactly passing though.
 This is because we are calling `.expect()` on our `SubscriberName::parse()`,
 And that will panic if it gets an error.
-We much change the `subscribe` return to "400 BAD REQUEST" on errrors. 
+We much change the `subscribe` return to "400 BAD REQUEST" on errrors.
 
 Ok, to run the integration tests:
 
@@ -1173,8 +1184,8 @@ So, sure, we can throw it in.
 cargo add validator --features=derive
 ```
 
-Well, I think `validator` changed since the book, from version 0.16 to 0.18. 
-Must read documentation to figure out the updated way to use it. 
+Well, I think `validator` changed since the book, from version 0.16 to 0.18.
+Must read documentation to figure out the updated way to use it.
 Check out [Validator docs | docs.rs](https://docs.rs/validator/0.18.1/validator/).
 It's much more complicated, using the `alloc::borrow::Cow`, or "clone-on-write" smart pointer.
 
@@ -1193,13 +1204,14 @@ It does not exhaustively explore the input space.
 
 There's a crate called ["fake" | crates.io](https://crates.io/crates/fake).
 As of right now (14-04-2024), apparently `fake:2.9.2` relies on the `rand` crate.
-That crate is below version 1, only at 0.8.5. 
+That crate is below version 1, only at 0.8.5.
 Something about not being used by quickcheck, we will settle for `fake:~2.3`.
 The create is easy enough to use actually.
 
 There are two mainstream options for _property-based testing_:
-+ `quickcheck`
-+ `proptest`
+
+- `quickcheck`
+- `proptest`
 
 We are looking into `quickcheck`.
 It has an `Arbitrary` trait we will implement to make our email validation tests compatible with the crate.
@@ -1211,17 +1223,17 @@ cargo add --dev quickcheck_macros
 
 Don't include the version actually.
 The book suggests versions under 1.0, but, maybe recently, they are now at 1.0.
-Of course, the API has changed and I cannot get it to work correctly as is. 
+Of course, the API has changed and I cannot get it to work correctly as is.
 So, downgrading gives us passing results.
 
-Maybe a homework assignment, get that working correctly with updated versions. 
+Maybe a homework assignment, get that working correctly with updated versions.
 
 Just did some serious debugging because the "returns 200 test keeps failing".
 The `dbg!()` macro is amazing for this.
-The database is returning that the value is already stored for some reason. 
+The database is returning that the value is already stored for some reason.
 
 Hours spent debugging when I was using the ol'foot-gun...
-In the test, I was trying to configure the database with the `without_db()` method. 
+In the test, I was trying to configure the database with the `without_db()` method.
 I don't know what it was doing, but it wasn't configuring a new database.
 
 We can now refactor with `TryFrom`.
@@ -1249,7 +1261,7 @@ let example_2 = form.0.try_into();
 ## Reject Invalid Subscriber Part II
 
 Seems like the chapter will be about sending a confirmation email.
-It is important to obtain subscriber concent. 
+It is important to obtain subscriber concent.
 European citizens legally require explicit concent from the user.
 
 The idea is we give them a link.
@@ -1257,6 +1269,7 @@ The user clicks the link to confirm intent.
 We just return a `200 OK` response, no redirection.
 
 What are the steps?:
+
 1. User sends POST request to our `/subscription` endpoint.
 2. We add details to database, "subscriptions" table, status set to `pending_confirmation`.
 3. We generate a unique `subscription_token` and store in database linked to user ID.
@@ -1265,6 +1278,7 @@ What are the steps?:
 6. We return status `200 OK`
 
 We should also then activate their account.
+
 1. The cliked link send GET request with that token.
 2. We retrieve that token from query parameters.
 3. query the ID associated with that token
@@ -1284,8 +1298,8 @@ Conneting is an expensive operation.
 Using HTTPS to create new connections everytime we want to email can lead to _socket exhaustion_ under load.
 Most HTTP clients offer _connection pooling_.
 When the first requtest to a remote server is complete, the connection hangs open for some time.
-This can avoid re-establishing a connection. 
-The reqwest create initialises a connection pool _under the hood_. 
+This can avoid re-establishing a connection.
+The reqwest create initialises a connection pool _under the hood_.
 We want to take advantage of this and reuse the same `Client` across multiple requests.
 
 To do this, we go to `startup.rs`...
@@ -1297,9 +1311,9 @@ wrapping the connection in an ARC pointer and passing clones of that pointer to 
 We code our way through adding an email client into starting out app.
 Because of code duplication, we also must update our tests separately, the `run()` arguments.
 
-While on the subject, we now want to test this, 
+While on the subject, we now want to test this,
 which involves testing a REST client.
-It is good to start small, testing the `EmailClient` component in isolation. 
+It is good to start small, testing the `EmailClient` component in isolation.
 The `EmailClient::send_email` must perform an HTTP request.
 To test, we need to catch our own HTTP request.
 This is where we spin up a mock server!
@@ -1320,7 +1334,7 @@ Setting up connection through Netlify with Postmarkapp was simple enough.
 Then, they send me an email on how to use their API with `cURL`.
 
 Now we look at Postmark API documentation.
-It is also in the email I received earlier. 
+It is also in the email I received earlier.
 It's good to know how to use `cURL`, so here it is...
 
 ```bash
@@ -1354,12 +1368,12 @@ Then the JSON with...
 ```
 
 We hook up all the moving parts...
-Then we refine our testing. 
+Then we refine our testing.
 The `wiremock` crate is very good.
 But we want a generic JSON validator because the JSON email body is randomized.
-We can create our own using the `wiremock::Match` trait. 
+We can create our own using the `wiremock::Match` trait.
 
-We also need to add `serde_json` specifically. 
+We also need to add `serde_json` specifically.
 I think it has many methods for converting Rust to JSON,
 other than serde's derived macros.
 You can also import the handy `json!({...})` macro if needed.
@@ -1370,15 +1384,15 @@ Something like, `#[serde(rename_all = "PascalCase")]`.
 
 After getting the test to work, we look at improvements, which Rust should be good with.
 We zoom in on how we create many strings in the email request, a sure sign of waste.
-Basically, each field allocates a bunch of new memory to stre a cloned `String`. 
+Basically, each field allocates a bunch of new memory to stre a cloned `String`.
 It would be more efficient to reference existing data without additional allocation.
 We can use the `&str`, which is just a pointer to a memory buffer owned by something else.
 
 Why didn't we start with that?
 Storing a reference in a struct requires a _lifetime_ parameter.
 Not the end of the world, just tells the compiler the reference will be alive for the duration of the struct.
-This prevents pointers that point to... nothing. 
-I think called null/garbage pointers. 
+This prevents pointers that point to... nothing.
+I think called null/garbage pointers.
 
 We set up a test to ensure the request is sent ok.
 Then a test that errors if a bad response is received.
@@ -1402,15 +1416,15 @@ We go with the former for ease.
 Then, section 7.3, we look at restructuring the test suite.
 Remember: **Test code is still Code**.
 It really should be:
-+ Modular
-+ Well-structured
-+ documented
-+ _maintained_
+
+- Modular
+- Well-structured
+- documented
+- _maintained_
 
 We have a look at the test logic for `spawn_app()`.
 We know it is similar to the `main()` function.
 It's code smells, we had to update our email stuff twice because code duplication.
-
 
 For testing, we bind a random port in the test setup.
 But our new `build()` function also binds a port in it.
@@ -1420,15 +1434,15 @@ We also pull out some other logic so things are less duplicated.
 We can now look back to the mission of sending a confirmation email.
 The book explains some of the details around what needs be accomplished around p. 274.
 But first, a discussion on **Zero Downtime Deployments**.
-Commercially, you might strike a "Service Level Agreement" (SLA), 
-which is a contractual obligation to guarantee a certain level of reliability. 
+Commercially, you might strike a "Service Level Agreement" (SLA),
+which is a contractual obligation to guarantee a certain level of reliability.
 Interesting to note, 99.99% reliability is roughly only 52 minutes of downtime per year.
 Basically, if a release triggers a small outage, you cannot release multiple times per day.
 
 The "health-check" endpoint is actually good for **self-healing** applications.
 There are also several deployment strategies.
 The niave deployment is just... shut it down and reboot with updated version.
-**Rolling Updates** involve a _load-balancer_ to introduce nodes casually. 
+**Rolling Updates** involve a _load-balancer_ to introduce nodes casually.
 DigitalOcean is _probably_ relying on Rolling Updates.
 
 This goes into Database schema.
@@ -1453,8 +1467,8 @@ SKIP_DOCKER=true ./scripts/init_db.sh
 ```
 
 Trying to get the updates to build.
-Had to run `cargo sqlx prepare` to update the offline database cache. 
-Migrated to production again and pushed code to start deployment another few times. 
+Had to run `cargo sqlx prepare` to update the offline database cache.
+Migrated to production again and pushed code to start deployment another few times.
 I actually wonder if the app is connected to the database on DigitalOcean... I don't remember.
 I believe that is in the `spec.yaml` file and why many keys are scoped to `RUN_TIME`.
 
@@ -1463,7 +1477,7 @@ I believe that is in the `spec.yaml` file and why many keys are scoped to `RUN_T
 p. 282 / 301
 
 Now we dive into a test-driven development by trying out _red-gree-refactor_ loop.
-We also will use [`linkify` | crates.io](https://crates.io/crates/linkify) in our testing. 
+We also will use [`linkify` | crates.io](https://crates.io/crates/linkify) in our testing.
 
 We are adding another environment variable to the `spec.yaml`.
 Since we updated this file, we must apply changes to DigitalOcean.
@@ -1477,17 +1491,18 @@ doctl apps update <$APP_ID> --spec spec.yaml
 
 Now we register the value in the application context,
 a process to be familiar with!
-+ Go to `startups.rs`
-+ add parameter into the `server = run(...)` function.
-  + This creates errors as the function only takes 3 parameters but we now supply 4.
-+ Create a struct wrapper (in needed) since actix-web context is type-based
-  + Using multiple `String` types opens us to conflicts
-+ add `base_url: String` as a parameter in `fn run(...)`
-+ create context with `let base_url = Data::new(ApplicationBaseUrl(base_url))`
-+ Add to app like `App::new()...app_data(base_url.clone())`
+
+- Go to `startups.rs`
+- add parameter into the `server = run(...)` function.
+  - This creates errors as the function only takes 3 parameters but we now supply 4.
+- Create a struct wrapper (in needed) since actix-web context is type-based
+  - Using multiple `String` types opens us to conflicts
+- add `base_url: String` as a parameter in `fn run(...)`
+- create context with `let base_url = Data::new(ApplicationBaseUrl(base_url))`
+- Add to app like `App::new()...app_data(base_url.clone())`
 
 For production, the base url is OK.
-For testing, we need to also know the port. 
+For testing, we need to also know the port.
 But the port we use is $0$ to make it random, what do we do?
 Basically, load up any information you need for the tests into the `TestApp` struct.
 
@@ -1509,20 +1524,20 @@ cargo add rand --features=std_rng
 ```
 
 The book has a different approach to generating a random string of characters.
-But, following the documentation for `rand::distributions::Alphanumeric`, 
+But, following the documentation for `rand::distributions::Alphanumeric`,
 I followed that way.
 A small issue is that we related the token to a user in a different table.
-We never fetch the user's ID though. 
+We never fetch the user's ID though.
 
 ### 7.8 Database Transactions
 
-We finally have something done, but  now we must consider what happens if...
-We have an API call that makes 2 queries to the database. 
+We finally have something done, but now we must consider what happens if...
+We have an API call that makes 2 queries to the database.
 What happens if the applications crashes between queries?
 You can end up with a subscriber without a token, and that would require intervention.
 
 A database **transaction** groups related operations into a single unit of work.
-All operations in a transaction either succeed or fail together. 
+All operations in a transaction either succeed or fail together.
 The book continues on page 315 about PostGres database transaction syntax.
 Luckily, `sqlx` provides an API for transactions usings the `pool.begin().await` method.
 Then, when we passed the `pool.get_ref()` into functions, we pass in the mutable transactions.
@@ -1531,18 +1546,19 @@ However, it's a different struct, so some amendments will be required.
 The idea of the transaction is it has two methods, `Transaction::{rollback, commit}`.
 When the transaction is droped, it will try to rollback if not committed.
 We pass in mutable references so we can commit the complete transaction before ending the function.
-And if there's a crash, the function drops the transaction before it is committed and that rolls-back the queries. 
+And if there's a crash, the function drops the transaction before it is committed and that rolls-back the queries.
 
 Finally, The summary of the chapter!!!
 The auther suggests going off and exploring on your own.
 I have another project after this so I'll list the ideas, but no time to implement:
-+ What about trying to subscribe twice?
-+ Clicks on confirmation email twice?
-+ What if subscription token is _well-formatted_ but non-existent?
-+ Validate incoming token!
-  + Code currently passes in raw user input into SQL query but `sqlx` has our back.
-+ Proper templating solution for emails? (`tera`)
-+ etc...
+
+- What about trying to subscribe twice?
+- Clicks on confirmation email twice?
+- What if subscription token is _well-formatted_ but non-existent?
+- Validate incoming token!
+  - Code currently passes in raw user input into SQL query but `sqlx` has our back.
+- Proper templating solution for emails? (`tera`)
+- etc...
 
 ---
 
@@ -1555,37 +1571,39 @@ Starts on 323 / 342 and is Error Handling...
 The author looks at `src::routes::subscriptions::store_token`,
 which returns a `Result<(), sqlx::Error>`.
 It attempts to store a token into the database.
-However, the `execute()` method is a _fallible_ operation. 
+However, the `execute()` method is a _fallible_ operation.
 The method returns a `Result` so the caller of the method **can _react_ accordingly**.
 
 Knowing how to react is difficutl when there are so many different ways something can fail.
 The author shows a massive list of `Error` enum variants from the `sqlx` crate.
 Errors should also contain enough **context** to produce a report for the developer.
-They need to troubleshoot problems. 
+They need to troubleshoot problems.
 And that is why we use the `...map_err(|e| {tracing::error!(...)})` pattern to log the errors.
 
 Users of an application firstly, expect the application to not fail.
 But, secondly, if/when it does, they would expect some kind or signal or message that it has failed.
-We have been sending `HttpResponse::InternalServerError().finish()` signals. 
+We have been sending `HttpResponse::InternalServerError().finish()` signals.
 Note, the reponse body of these errors is empty by design.
 Most users wouldn't be able to determine why our application is failing anyway.
 
 But, even in `src::domain::subscriber_email::SubscriberEmail::parse()`,
-we don't _propagate_ the error message to the user. 
+we don't _propagate_ the error message to the user.
 We create an error message and send the `Result`.
 The function performs a match,
-and if it is `Err(_)`, 
+and if it is `Err(_)`,
 we just send `HttpResponse::BadRequest().finish()`,
 which has an empty body.
 This is a very poor error because the user wouldn't understand why the call failed.
 
 2 purposes of errors:
-+ Control flow
-+ Reporting
+
+- Control flow
+- Reporting
 
 Location of Errors:
-+ Internal (functions in our application calling other functions in our application)
-+ At the edge (API request our application fails to fulfill)
+
+- Internal (functions in our application calling other functions in our application)
+- At the edge (API request our application fails to fulfill)
 
 Be careful with how much information you give to a user.
 They should only be given what is required to adjust their behaviour.
@@ -1594,7 +1612,7 @@ They should only be given what is required to adjust their behaviour.
 
 We apparently are going to test our logs by sabotaging our database in a test.
 We drop a column?
-In my current version of the book... 20240128, 
+In my current version of the book... 20240128,
 The author left a footnote that they look forward to revisiting the chapter when better tooling becomes available.
 You would ideally write tests to verify the properties of the logs emitted by the application.
 
@@ -1613,11 +1631,11 @@ Check out the docs for more information.
 
 The [documentation](https://actix.rs/docs/errors#error-logging-1) kind of shows `actix_web::error`, lowercase.
 The [actix-web | docs.rs](https://docs.rs/actix-web/4.0.1/actix_web/error/struct.Error.html) documentation
-shows that `error` is the module and `Error` is the struct. 
-I think the idea is to implement `actix_web::ResponseError` trait on the `sqlx::Error` enum. 
+shows that `error` is the module and `Error` is the struct.
+I think the idea is to implement `actix_web::ResponseError` trait on the `sqlx::Error` enum.
 However, Rust has an _orphan rule_:
 it is forbidden to implement foreign trait for a foreign type.
-It's also just the wrong approach. 
+It's also just the wrong approach.
 The compiler will suggest wrapping the original error.
 
 This is great but our trait requires `Debug` and `Display` traits.
@@ -1625,13 +1643,13 @@ The Debug one is good and most / all public types should implement this.
 Display is tough because most types don't implement it and it cannot be _derived_.
 Yes, then were an `sqlx::Error` is emitted, we wrap in our wrapper for returning.
 Then, that error type implements the `ResponseError` trait,
-Allowing Actix-Web to handle it. 
+Allowing Actix-Web to handle it.
 Looks like the `exception.details = Debug` and `exception.message = Display`
 
-We then look at what an error in Rust really looks like. 
-It's a trait that implements Debug and Display. 
+We then look at what an error in Rust really looks like.
+It's a trait that implements Debug and Display.
 In `Result<T, E>` the error type can be anything.
-But making it an actually Error type _semantically_ marks our type as an error. 
+But making it an actually Error type _semantically_ marks our type as an error.
 There's also a "Rust Error Handling Working Group".
 
 Rust error trait:
@@ -1762,10 +1780,10 @@ pub async fn store_token(
 ```
 
 Basically, this `actix_web::Error` coming from `store_token()` is basically some random function,
-completely unaware of REST or HTTP protocol. 
+completely unaware of REST or HTTP protocol.
 As such, if the code were reused for a non-REST implementation,
 we wouldn't want to return an error of Status 500 on failure.
-We will start over now to enfore separation of concerns. 
+We will start over now to enfore separation of concerns.
 We create `SubscribeError`.
 
 The book says to nuke the error, but then we use it I think later on.
@@ -1826,7 +1844,7 @@ That can be a bunch of things, from connection issues, inserting subscriber issu
 As such, we much split up our generic `DatabaseError` into different possibilities.
 Then, when an error is returned, we'll have to map it to the correct varient.
 
-Because we are mapping the one `sqlx::Error` type to 3 different variants, 
+Because we are mapping the one `sqlx::Error` type to 3 different variants,
 we have to handle mapping with `().await.map_err(SubscribeError::...)` as they occur.
 This means knowing what thing returns what error.
 
@@ -2070,19 +2088,20 @@ so we have to explicitly map the `SubscribeError::ValidationError`.
 
 The `thiserror::Error` is a procedural macro used with the _derive_ statement.
 Other attributes are listed in the book:
-+ `#[error(...)]` -> defines `Display`
-+ `#[source]` -> what is returned as root cause in `Error::source`
-+ `#[from]` -> derives implementation of `From`
+
+- `#[error(...)]` -> defines `Display`
+- `#[source]` -> what is returned as root cause in `Error::source`
+- `#[from]` -> derives implementation of `From`
 
 Apparently when using the `#[from]` annotation it also implements the _source_,
 saving us from annotating twice.
 
 Why don't we use annotations for `ValidationError` variance?
 The `String` type does not implement the `Error` trait.
-It cannot be returned in `Error::source`. 
+It cannot be returned in `Error::source`.
 This is why, when implemented manually, this branch returned `None`.
 
-The enum `SubscriberError` is explicit but doesn't scale well. 
+The enum `SubscriberError` is explicit but doesn't scale well.
 We should think in terms of **abstraction layers**.
 That is, what does the caller of `/subscribe` need to know?
 
@@ -2130,7 +2149,7 @@ pub async fn subscribe(
 }
 ```
 
-After all of that refactoring, guess what, there's a crate called `anyhow`. 
+After all of that refactoring, guess what, there's a crate called `anyhow`.
 Check out [anyhow | crates.io](https://crates.io/crates/anyhow) for details.
 Basically, we can replace `Box<dyn std::error::Error>` with `anyhow::Error`.
 
@@ -2162,7 +2181,8 @@ export TEST_LOG=true
 cargo test subscribe_fails_if_there_is_a_fatal_database_error | bunyan
 ```
 
-We see information three times, 
+We see information three times,
+
 1. from `tracing::error!()` in code.
 2. from `actix_web` converting our `SubscribeError` into `actix_web::Error`
 3. from `tracing_actix_web::TracingLogger` telemetry middleware.
@@ -2184,7 +2204,7 @@ Start writing test that unconfirmed subscribers should **not** receive newslette
 
 We use a _scoped_ mock to ensure that the mock of sending an confirmation email
 does not blend with our other mock instance.
-The `mount_as_scoped` returns a `MockGuard`, 
+The `mount_as_scoped` returns a `MockGuard`,
 which has a custom `Drop` implementation to switch off the mock server when the Guard is out of scope.
 Also note when the Guard is dropped it will check it's `expect` clause.
 
@@ -2193,7 +2213,7 @@ basically the local configuration sends requests back at localhost.
 
 So, we have 2 tests, one to send to confirmed subscribers,
 and one to ensure we don't send to unconfirmed subscribers.
-As the book says, we begin with a naive approach. 
+As the book says, we begin with a naive approach.
 Looks like we send in the data,
 parse it from the request,
 fetch a list of newsletter confirmed subscribers,
@@ -2214,7 +2234,7 @@ We can increase with:
 ulimit -n <number-of-pages (e.g. 10000)>
 ```
 
-I also made the mistake of having the route accept GET  requests instead of POST.
+I also made the mistake of having the route accept GET requests instead of POST.
 Things to look out for.
 It's an unfortunate consequence that we need to lean on our learnings in Ch. 8
 for proper error handling.
@@ -2282,11 +2302,12 @@ The rest of this Chapter talks about shortcomings of this approach.
 Mainly anyone right now can send a POST request to the endpoint and it would send emails to our clients.
 Well, mine might not because that test is failing.
 Other things include:
-+ We send emails one at a time, bad performance.
-+ No chance to review before sending emails.
-+ If one email fails, the error returns 500 
-    + rest of emails are not sends, we don't retry failure.
-+ Networks are unstable, and there's no clause for retry unless you resend to everyone. 
+
+- We send emails one at a time, bad performance.
+- No chance to review before sending emails.
+- If one email fails, the error returns 500
+  - rest of emails are not sends, we don't retry failure.
+- Networks are unstable, and there's no clause for retry unless you resend to everyone.
 
 Ok, I am... probably programming on a lack of sleep.
 So, the issue I tried debugging earlier was for test `newsletters_are_delivered_to_confirmed_subscribers`.
@@ -2301,24 +2322,26 @@ The issue was I was using the function for an unconfirmed user.
 Starts p. 387 / 406 and is over 100 pages long...
 
 But it's an important section.
-We will look at authentication and authorization. 
+We will look at authentication and authorization.
 Some approaches include:
-+ Basic Auth
-+ Session-Based Auth
-+ OAuth 2.0
-+ OpenId Connect
+
+- Basic Auth
+- Session-Based Auth
+- OAuth 2.0
+- OpenId Connect
 
 And we will think about the most used token formats **JSON Web Tokens** (JWTs).
 
 You probably know the 3 categories of athentication:
-+ Something you know (password)
-+ Somthing you have (phone)
-+ Something you are (Face, fingerprint)
+
+- Something you know (password)
+- Somthing you have (phone)
+- Something you are (Face, fingerprint)
 
 Each approach has its weaknesses,
 which is why we combine them with multi-factor authentication.
 
-We will start with **Basic Authentication**, 
+We will start with **Basic Authentication**,
 a standard defined by the Internet Engineering Task Force.
 The API looks for `Authorization` header on incoming request:
 
@@ -2329,9 +2352,9 @@ Authorization: Basic <encoded credentials>
 The encoding is just [Base 64 Encoding](https://datatracker.ietf.org/doc/html/rfc4648#section-4)
 of "{username}:{password}".
 Encoding is not encryption, there's no secret.
-We create a **realm**, 
+We create a **realm**,
 a partition of protected space.
-We only need a single realm, we will call "publish". 
+We only need a single realm, we will call "publish".
 
 There's more to it than just this.
 The API rejects requests missing the header or using invalid credentials.
@@ -2353,7 +2376,7 @@ We probably need the `base64` crate...
 cargo add base64
 ```
 
-I want to put here what we just wrote, 
+I want to put here what we just wrote,
 the complexity around the simplicity of getting credentials:
 
 ```rust
@@ -2414,7 +2437,7 @@ without implementing `InTo` for every known error.
 We get the right status code but the header isn't correct yet.
 We implement `ResponseError::status_code()`,
 but now need `ResponseError::error_response()`.
-The way this trait works, 
+The way this trait works,
 It would invoke `error_response` which would call our `status_code`.
 We can trash the `status_code` if we implement a bespoke `error_response`.
 Unless you want to call `status_code` in your `error_response`.
@@ -2440,24 +2463,24 @@ sqlx migrate add -r <MIGRATION-NAME>
 
 That will create `*.down.sql` and `*.up.sql` files allowing you to revert.
 
-Now with updates made to optionally fetch user data, 
+Now with updates made to optionally fetch user data,
 we have tests to update.
 
 Now, we don't want to store passwords in raw text in our database.
 The author points to [Cryptographic Hash Functions | Wiki](https://en.wikipedia.org/wiki/Cryptographic_hash_function).
 Hash function do run risk of collision in most cases,
-but the risk is/should be very low. 
+but the risk is/should be very low.
 Cryptographic hash function examples: MD5, SHA-1, SHA-2, SHA-3, Kangaroo Twelve, etc...
-We'll just use Secure Hash Algorithm (SHA) 3. 
+We'll just use Secure Hash Algorithm (SHA) 3.
 You can also imply output size, 224, 256, 384, or 512 bits, like SHA-3-512.
-SHA-3-256 will be fine because more bits means more storage and bandwidth. 
+SHA-3-256 will be fine because more bits means more storage and bandwidth.
 
 Ok, back from holiday and right into it.
 Starting around p. 404, we create a `TestUser` struct to create a test user.
 This guy gets a hashed password.
 
-The author dives into *Preimage* attack,
-where a bad actor matches the input string's SHA3-256 to ones in our database. 
+The author dives into _Preimage_ attack,
+where a bad actor matches the input string's SHA3-256 to ones in our database.
 Because a brute-force attack an unfeasible time to compute,
 we should be protected.
 
@@ -2472,13 +2495,13 @@ There are known datasets of common passwords in the wild,
 taken from compromised websites and such.
 This means bad actors can precompute like 10 million password hashes,
 and scan the database looking for a match.
-This is a *dictionary attack*.
+This is a _dictionary attack_.
 
 We have discussed fast to compute cryptographic functions so far.
 This means an attack can be done without specialised hardware.
 We should consider slower to compute cryptographic functions.
 
-Check out the *Open Web Application Secutiry Project* (OWASP).
+Check out the _Open Web Application Secutiry Project_ (OWASP).
 They provide guidance on safe password storage.
 They suggest some _computationally demanding_ algorithms.
 We will replace SHA-3 with Argon2id, as recommended.
@@ -2489,12 +2512,12 @@ The author then covers using the rust crate starting p. 406:
 cargo add argon2@0.4 --features std
 ```
 
-I am hoping the API hasn't changed because the current latest  is v.0.5.
+I am hoping the API hasn't changed because the current latest is v.0.5.
 If you have questions you should refer to the book or the Argon2 docs.
 
 It has a `PasswordHasher` trait,
-which requires a salt. 
-We generate a *salt* for each user,
+which requires a salt.
+We generate a _salt_ for each user,
 a unique random string to prepend to the user password before hashing.
 salt is stored next to the password_hash in the database.
 This means an attacker also has to a lot of rehashing to do even if
@@ -2519,10 +2542,10 @@ This means the base64 encoding isn't really compatible with this method of stori
 Since we need to update, we will consider something better than base64.
 
 When storing password in database we assume all values stored have been computed wiith the same
-load parameters. 
+load parameters.
 Those are the `t_cost`, `m_cost`, `p_cost` parameters of Argon2id.
 The basic idea now is to store this information in the database in case we update
-the parameters in the future. 
+the parameters in the future.
 You might even want to store Algorithm information in case we change that.
 We will use a **PHC** string to store it all in one column.
 
@@ -2576,13 +2599,13 @@ Running Tests in release mode, still getting `"elapsed_milliseconds": 20`.
 Under serious load this can cause **blocking** problems.
 The author jumps into topic of **cooperative scheduling** (p.416).
 These are topics of Rust's async runtime.
-They compare it to a deeply nested state machine. 
+They compare it to a deeply nested state machine.
 The `.await` calls are often named **yield points**.
 The futures progress from the previous `.await` to the next,
-before yeilding control back to the executor. 
+before yeilding control back to the executor.
 
 The executor can choose to poll the same future again or prioritise progress on another task.
-This is how `tokio` manages progress concurrently on multiple tasks. 
+This is how `tokio` manages progress concurrently on multiple tasks.
 Pretty much only works good assuming tasks _cooperate_ by frequently yielding
 control back to the executor so it can perform other tasks if necessary.
 All-in-all, a _poll_ is expected to be fast, like less than 10-100 microseconds.
@@ -2600,12 +2623,12 @@ This is good for **timing attack**, from the broad class of side-channel attacks
 Author covers it on p. 424...
 
 We want to make an invalid username take as much time as an invalid password.
-This way, attackers can't use the time difference to find valid usernames. 
+This way, attackers can't use the time difference to find valid usernames.
 
 Implementing code on pdf p. 444.
 Looks like providing phony information by default.
 This means, it'll still do the password hashing,
-taking the same time with an incorrect username and with a valid. 
+taking the same time with an incorrect username and with a valid.
 
 ### 10.3 Is it Safe?
 
@@ -2623,12 +2646,12 @@ Therefore, Basic Auth requires the client to give credentials on **every request
 The backend can remember authenticaed users with **sessions**.
 The user authenticates once and the server generates an authenticates session token.
 The token is stored in the browser as a secure cookie.
-They are designed to expire. 
-This provides an additional layer of security, allowing a forced log out to delete the token. 
+They are designed to expire.
+This provides an additional layer of security, allowing a forced log out to delete the token.
 This is called **Session-Based Authentication**.
 
 You can see then we probably need a log in form.
-Many websites allow to log in with a Social Profile. 
+Many websites allow to log in with a Social Profile.
 This relies on **Identity Federation**.
 Authenitcation is delegated to a third-party **identity provider**,
 and we get some information like email address, name, etc...
@@ -2653,6 +2676,17 @@ The author continues to make modules in `src/routes`.
 I would argue at this point for more of a **Model View Template** approach.
 But I am almost certian this is part of the learning journey and we will refactor later.
 
+We add a login page that sends a post request back to itself, which we catch.
+But the POST request doesn't really send back a new page,
+so the browser will render nothing, it's blank.
+We should redirect somewhere, to the home page for now.
+Redirects requires an HTTP 3XX status code and a _Location_ header (new URL).
+
+Once we redirect, we can implement handling the form data.
+We want to parse and check that data to log in a user.
+Of course, we used the foot-gun earlier and stuffed all that authentication login
+into the newsletter module.
+Yes, we need to pull it out now.
 
 ---
 
