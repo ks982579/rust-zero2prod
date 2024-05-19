@@ -2915,6 +2915,9 @@ But each function seems to create a new client...
 We want to share a `Client` between functions to propagate cookies,
 Which requires a lot of refactoring in our helpers.
 
+Looking at out `src/routes/login/get.rs`, we need to read cookies now.
+Start by... ripping out that HMAC crap.
+
 ---
 
 ## Ch. 11 - Fault-tolerant Workflows
