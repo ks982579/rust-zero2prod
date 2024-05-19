@@ -2818,6 +2818,55 @@ That's ok, just spent a couple hours implementing all that...
 
 Yes, so in the `src/routes/login/post.rs` file to remove all the HMac stuff.
 
+Now, the book covers some interesting cookie info.
+Cookies are set with a special HTTP header:
+
+```bash
+Set-Cookie: {cookie-name}={cookie-value}
+```
+
+Assumingly the curly braces are not included.
+You can add it multiple times for multiple cookies.
+The `reqwest` library can get all headers with a specific name, like "Set-Cookie".
+
+We can work with raw headers, if you fancy.
+But there's an [`HttpResponse::add_cookie(&mut self, cookie: &Cookie<'_>)` | docs.rs](https://docs.rs/actix-web/latest/actix_web/struct.HttpResponse.html#method.add_cookie)
+method to add cookies to a response.
+It is behind a "cookie" feature flag, so feel free to work with raw headers
+if you don't want to enable that feature.
+
+I'm sorry, the book is talking about the `reqwest` crate, same story though.
+It's behind a feature flag as well.
+
+Also, tid-bit of inforamtion,
+you can kind-of [delete cookies | StackOverflow](https://stackoverflow.com/questions/5285940/correct-way-to-delete-cookies-server-side)
+by just updating the cookie's value, and setting an `expires=Thu, 01 Jan 1970 00:00:00 GMT` value.
+
+Again, you can use `actix_web::HttpResponse::headers_mut() -> &mut HeaderMap`
+and follow the examples from the docs.
+Or, using `HttpResponse::build(status: StatusCode) -> HttpResponseBuilder`
+to get a builder.
+Then, you can also build a cookie with `actix_web::cookie::Cookie::build(name: &str, value: &str)`
+to build build it up.
+Docs provide an example like:
+
+```rust
+use actix_web::{HttpResponse, cookie::Cookie};
+
+let res = HttpResponse::Ok()
+    .cookie(
+        Cookie::build("name", "value")
+            .domain("www.rust-lang.org")
+            .path("/")
+            .secure(true)
+            .http_only(true)
+            .finish(),
+    )
+    .finish();
+```
+
+So I mixed a bit, grabbing cookies from `reqwest` and setting them with Actix-Web.
+
 ---
 
 ## Ch. 11 - Fault-tolerant Workflows

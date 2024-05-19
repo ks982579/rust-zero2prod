@@ -21,7 +21,7 @@ pub struct FormData {
 
 #[derive(thiserror::Error)]
 pub enum LoginError {
-    #[error("Authenication Failed")]
+    #[error("Authentication Failed")]
     AuthError(#[source] anyhow::Error),
     #[error("Something went wrong")]
     UnexpectedError(#[from] anyhow::Error),
@@ -119,6 +119,7 @@ pub async fn login(
                     // format!("/login?{}&tag={:x}", query_string, hmac_tag),
                     "/login",
                 ))
+                .insert_header(("Set-Cookie", format!("_flash={e}")))
                 .finish();
             Err(InternalError::from_response(e, response))
         }
