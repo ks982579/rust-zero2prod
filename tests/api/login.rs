@@ -27,9 +27,10 @@ async fn an_error_flash_message_is_set_on_failure() {
     //     .into_iter()
     //     .collect();
     // assert!(cookies.contains(&HeaderValue::from_str("_flash=Authentication Failed").unwrap()));
-    let flash_cookie: reqwest::cookie::Cookie =
-        response.cookies().find(|c| c.name() == "_flash").unwrap();
-    assert_eq!(flash_cookie.value(), "Authentication Failed");
+    // -- Removing cookies because FlashMessages handles it for us.
+    // let flash_cookie: reqwest::cookie::Cookie =
+    //     response.cookies().find(|c| c.name() == "_flash").unwrap();
+    // assert_eq!(flash_cookie.value(), "Authentication Failed");
 
     // Act - Part 2 - Follow Redirect
     let html_page: String = app.get_login_html().await;

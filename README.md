@@ -2973,6 +2973,64 @@ It takes care of creating, signing, and setting properties.
 
 It comes with an `IncomingFlashMessages` receiver...
 Update `src/routes/login/get.rs`.
+And then a quick test update to remove the check for the cookie.
+
+### 10.7 = Sessions
+
+Now, what happens if a login is successful?
+
+Basically, we redirect to an admin dashboard.
+This page should be locked behind authentication.
+Session tokens are not Session Cookies.
+It's a weird naming convention taken by industry.
+
+OWASP provides guidance on how to secure sessions.
+The author implements their recommendations going forward.
+
+How to implement?
+
+- Need API to generate session token after successful login.
+- Tokens MUST be unique.
+- We need a **session** store for server to remember tokens.
+- And we associate information to active session, called **session state**.
+
+For the token, it's good to make something that can't be guessed.
+A cryptographically secure pseudorandom number generator (CSPRNG) is recommended.
+
+During a session LifeCycle we will need to do CRUD operations:
+
+- Create
+- Read / retrieval
+- Update
+- Delete
+
+And tokens should expire, but some don't.
+Still, we need a _clean-up_ mechanism to remove stale sessions from the session store.
+
+I implemented something like this before in Postgres.
+However, as the author states,
+Postgres does not come with a built-in clean-up mechanism.
+You would have to implement your own.
+
+Redis is an in-memory database, sort of key-value store.
+It supports expiration though.
+The author will use Redis... However, I don't think they are as open sourced as they once were.
+
+```bash
+cargo add actix-session
+```
+
+This is `SessionMiddleware`.
+We begin this journey in `src/startup.rs`.
+p. 480 talks about `actix-session`.
+When I added it with `cargo`, it came with some Redis feature flags.
+We need to connect Redis... go into configurations and add it.
+We add it to regular `Settings` struct.
+Other keys here are their own structs, but let's see what we need.
+
+Redis default port is 6379.
+We do some updates to the code to include Redis, but need to actually start a container.
+We begin with a startup script.
 
 ---
 

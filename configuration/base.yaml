@@ -13,3 +13,4 @@ email_client:
   sender_email: "test@example.com"
   authorization_token: "123-45-6789"
   timeout_milliseconds: 10000
+redis_uri: "redis://127.0.0.1:6379"

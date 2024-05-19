@@ -1,5 +1,7 @@
 use actix_web::{cookie::Key, dev::Server, web, App, HttpServer};
 // use sqlx::PgConnection;
+use actix_session::storage::RedisSessionStore;
+use actix_session::SessionMiddleware;
 use actix_web_flash_messages::storage::CookieMessageStore;
 use actix_web_flash_messages::FlashMessagesFramework;
 use secrecy::{ExposeSecret, Secret};
@@ -21,7 +23,7 @@ pub struct Application {
 impl Application {
     // Convert `build()` into constructor for `Application`
     // Extracting from main for testing purposes.
-    pub async fn build(configuration: Settings) -> Result<Self, std::io::Error> {
+    pub async fn build(configuration: Settings) -> Result<Self, anyhow::Error> {
         // // Connect to Database in Main Function!
         // let connection: PgConnection =
         //     PgConnection::connect(&configuration.database.connection_string())
@@ -62,7 +64,9 @@ impl Application {
             email_client,
             configuration.application.base_url,
             configuration.application.hmac_secret,
-        )?;
+            configuration.redis_uri,
+        )
+        .await?;
 
         // And we store information in Application struct
         Ok(Self { port, server })
@@ -90,13 +94,15 @@ pub struct ApplicationBaseUrl(pub String);
 // removed the `async` from this function.
 // adding the `address: &str` parameter to allow for dynamic connections
 // Just kidding, we need a TcpListener so we can track the port.
-pub fn run(
+// And now Asynchronous for Redis
+pub async fn run(
     listener: TcpListener,
     db_pool: PgPool,
     email_client: EmailClient,
     base_url: String,
     hmac_secret: Secret<String>,
-) -> Result<Server, std::io::Error> {
+    redis_uri: Secret<String>,
+) -> Result<Server, anyhow::Error> {
     // Wrap the connection in Smart Pointer!
     let db_pool: web::Data<PgPool> = web::Data::new(db_pool);
     let email_client: web::Data<EmailClient> = web::Data::new(email_client);
@@ -104,10 +110,12 @@ pub fn run(
 
     // This is storage backend
     // It requres a key to sign cookies
-    let message_store =
-        CookieMessageStore::builder(Key::from(hmac_secret.expose_secret().as_bytes())).build();
+    let secret_key = Key::from(hmac_secret.expose_secret().as_bytes());
+    let message_store = CookieMessageStore::builder(secret_key.clone()).build();
     // Requires storage backend as argument...
     let message_framework = FlashMessagesFramework::builder(message_store).build();
+
+    let redis_store = RedisSessionStore::new(redis_uri.expose_secret()).await?;
 
     // HttpServer for binding to TCP socket, maximum number of connections
     // allowing transport layer security, and more.
@@ -116,6 +124,10 @@ pub fn run(
             // middleware added with the `.wrap()` method.
             // .wrap(Logger::default())
             .wrap(message_framework.clone())
+            .wrap(SessionMiddleware::new(
+                redis_store.clone(),
+                secret_key.clone(),
+            ))
             .wrap(TracingLogger::default())
             .route("/", web::get().to(home))
             .route("/login", web::get().to(login_form))

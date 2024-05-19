@@ -76,6 +76,8 @@ pub struct Settings {
     pub database: DatabaseSettings,
     pub application: ApplicationSettings,
     pub email_client: EmailClientSettings,
+    // Marked secret because may embed a password
+    pub redis_uri: Secret<String>,
 }
 
 /// Needs to be desearlized so it's _parent_ can also be desearlized.
