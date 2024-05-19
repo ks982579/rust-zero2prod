@@ -8,7 +8,8 @@ use actix_web::http::header::LOCATION;
 use actix_web::HttpResponse;
 // use actix_web::ResponseError;
 // use crate::startup::HmacSecret;
-use actix_web::cookie::Cookie;
+// use actix_web::cookie::Cookie;
+use actix_session::Session;
 use actix_web::error::InternalError;
 use actix_web::web;
 // use hmac::{Hmac, Mac};
@@ -77,7 +78,7 @@ pub async fn login(
     form: web::Form<FormData>,
     pool: web::Data<PgPool>,
     // secret: web::Data<HmacSecret>,
-    // ) -> Result<HttpResponse, LoginError> {
+    session: Session, // ) -> Result<HttpResponse, LoginError> {
 ) -> Result<HttpResponse, InternalError<LoginError>> {
     let credentials = Credentials {
         username: form.0.username,
@@ -98,8 +99,11 @@ pub async fn login(
         Ok(user_id) => {
             tracing::Span::current().record("user_id", &tracing::field::display(&user_id));
             // New response for HTTP 303 status code
+            session
+                .insert("user_id", user_id)
+                .map_err(|e| login_redirect(LoginError::UnexpectedError(e.into())))?;
             Ok(HttpResponse::SeeOther()
-                .insert_header((LOCATION, "/"))
+                .insert_header((LOCATION, "/admin/dashboard"))
                 .finish())
         }
         Err(e) => {
@@ -107,7 +111,7 @@ pub async fn login(
                 AuthError::InvalidCredentials(_) => LoginError::AuthError(e.into()),
                 AuthError::UnexpectedError(_) => LoginError::UnexpectedError(e.into()),
             };
-            FlashMessage::error(e.to_string()).send();
+            // FlashMessage::error(e.to_string()).send();
             // let query_string = format!("error={}", urlencoding::Encoded::new(e.to_string()));
             // let hmac_tag = {
             //     let mut mac =
@@ -116,17 +120,27 @@ pub async fn login(
             //     mac.update(query_string.as_bytes());
             //     mac.finalize().into_bytes()
             // };
-            let response = HttpResponse::SeeOther()
-                .insert_header((
-                    LOCATION,
-                    // format!("/login?{}&tag={:x}", query_string, hmac_tag),
-                    "/login",
-                ))
-                // .insert_header(("Set-Cookie", format!("_flash={e}")))
-                // `FlashMessagesFramework` middleware handles the cookie
-                // .cookie(Cookie::new("_flash", e.to_string()))
-                .finish();
-            Err(InternalError::from_response(e, response))
+            // let response = HttpResponse::SeeOther()
+            //     .insert_header((
+            //         LOCATION,
+            //         // format!("/login?{}&tag={:x}", query_string, hmac_tag),
+            //         "/login",
+            //     ))
+            // .insert_header(("Set-Cookie", format!("_flash={e}")))
+            // `FlashMessagesFramework` middleware handles the cookie
+            // .cookie(Cookie::new("_flash", e.to_string()))
+            // .finish();
+            // Err(InternalError::from_response(e, response))
+            Err(login_redirect(e))
         }
     }
+}
+
+/// Redirect to login page with error message.
+fn login_redirect(e: LoginError) -> InternalError<LoginError> {
+    FlashMessage::error(e.to_string()).send();
+    let response = HttpResponse::SeeOther()
+        .insert_header((LOCATION, "/login"))
+        .finish();
+    InternalError::from_response(e, response)
 }

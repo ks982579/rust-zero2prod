@@ -217,6 +217,7 @@ async fn configure_database(config: &DatabaseSettings) -> PgPool {
 // Remove the `async` here as well...
 // Making function async now
 pub async fn spawn_app() -> TestApp {
+    dbg!("Starting Spawn App");
     // Subscribing to Trace events (like in `main()`)
     TRACING.get_or_init(|| {
         if std::env::var("TEST_LOG").is_ok() {
@@ -241,8 +242,11 @@ pub async fn spawn_app() -> TestApp {
     // Use mock server as email API
     configuration.email_client.base_url = email_server.uri();
 
+    dbg!("Starting database Connection");
     // Create and migrate the database
     configure_database(&configuration.database).await;
+
+    dbg!("Finished database Connection");
 
     // adding clone of connection pool
     let application = Application::build(configuration.clone())
@@ -255,12 +259,15 @@ pub async fn spawn_app() -> TestApp {
 
     let _ = tokio::spawn(application.run_until_stopped());
 
+    dbg!("Here 1?");
     // On Client for All
     let client = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
         .cookie_store(true)
         .build()
         .unwrap();
+
+    dbg!("Here 2?");
 
     // Return the String of the whole address.
     // format!("http://127.0.0.1:{}", port)

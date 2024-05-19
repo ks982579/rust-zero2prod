@@ -3050,6 +3050,22 @@ Should feel familiar at this point.
 Time to redirect on successful login.
 Start with some integration tests.
 
+The `SessionMiddleware` will check for a session cookie in incoming requests.
+It will load the session state if it exists.
+Else, it creates a new empty session state.
+We use `Session` as extractor in `login/post.rs`
+We also add "serde" feature to `uuid` crate.
+We need that because the values passed into a session must be serializable.
+Actix-Session converts them into JSON for us.
+
+A slight refactor of `post.rs` shows a cool `InternalError::from_response()` method.
+
+Info on `Session::insert`, p. 488.
+It is lazy('ish) and updates Redis and sets cookies!
+
+`Session::get<T>(id: &str)` requires turbo-fish so it knows what to deserialize into.
+We use `.map_err()` because deserialization may fail, and must be handled.
+
 ---
 
 ## Ch. 11 - Fault-tolerant Workflows

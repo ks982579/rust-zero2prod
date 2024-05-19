@@ -43,6 +43,7 @@ async fn an_error_flash_message_is_set_on_failure() {
 
 #[tokio::test]
 async fn redirect_to_admin_dashboard_after_login_success() {
+    dbg!("Starting Redirect To Admin after Login Success");
     // Arrange
     let app = spawn_app().await;
 

@@ -1,7 +1,8 @@
 application:
   port: 8000
   # Must set `APP_APPLICATION__HMAC_SECRET` env variable on Digial Ocean for production
-  hmac_secret: "long-and-secret-key-needed-to-verify-message-integrity"
+  # Must be 64 bytes long at least
+  hmac_secret: "long-and-secret-key-needed-to-verify-message-integrity-123456789123456789ABCDEFG"
 database:
   host: "localhost"
   port: 5432
