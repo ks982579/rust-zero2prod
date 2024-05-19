@@ -76,5 +76,30 @@ pub async fn login_form(flash_messages: IncomingFlashMessages) -> HttpResponse {
     HttpResponse::Ok()
         .content_type(ContentType::html())
         // .cookie(Cookie::build("_flash", "").max_age(Duration::ZERO).finish())
-        .body(format!("{}", error_html))
+        .body(format!(
+            r#"
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Login</title>
+    <!-- <link href="css/style.css" rel="stylesheet"> -->
+  </head>
+  <body>
+    {error_html}
+    <!-- To send a POST request to this endpoint -->
+    <form action="/login" method="post">
+      <label for="username">
+        <input type="text" name="username" placeholder="Enter Username" />
+      </label>
+      <label for="password">
+        <input type="password" name="password" placeholder="Enter Password" />
+      </label>
+      <button type="submit">Login</button>
+    </form>
+  </body>
+</html>
+"#,
+        ))
 }

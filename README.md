@@ -3119,6 +3119,39 @@ We then plug that into functions were sessions were being used.
 Now, to handle users just finding the page without logging in.
 Should be redirected.
 
+### 10.8 - Seed Users
+
+Basically, how can we log in when we don't have a create user page?
+One idea is the application owner would be the first admin.
+We can implement login-protected functionality allowing the seed admin to invite
+other as an exercise, using the subscription flow for inspiration.
+
+To create a _seed user_, we add a migration.
+They will have predetermined credentials they must change after logging in for first time.
+
+```bash
+sqlx migrate add seed_user
+```
+
+Check the migration, but we need to create a PHC string.
+p. 496 uses our tests to pop one out...
+
+```YAML
+username: admin
+password: everythinghastostartsomewhere
+```
+
+```bash
+sqlx migrate run
+```
+
+Then try logging in!
+I had to update the login form because I didn't include it, but it worked.
+
+#### Password Reset
+
+Hopefully moving in Turbo!
+
 ---
 
 ## Ch. 11 - Fault-tolerant Workflows
