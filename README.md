@@ -3164,6 +3164,37 @@ and unset that client-side cookie!
 Luckily, `actix-session` has a dedicated method, `Session::purge`.
 Expose that in the `TypeSession` wrapper and get going!
 
+We also need to rehash the incoming password and save it into the database.
+So much work, you wouldn't know it though.
+
+### 10.9 - Refactoring?
+
+This is a good section (starting p. 514) because it dives into writing middleware,
+a semi-challenging topic.
+Read middleware requires knowledge of the `Transform` and `Service` traits.
+They are complex.
+We will opt for `actix_web_lab::from_fn`, or [actix-web-lab | crates.io](https://crates.io/crates/actix-web-lab).
+Do note that the Actix-Web documentation also allows for something like `App::new().wrap_fn(|req, srv| {...})`
+as a quick-and-dirty solution to middleware as well.
+
+```bash
+cargo add actix-web-lab
+```
+
+So, the `from_fn()` takes an asynchronous function as argument and returns middleware as output... exciting.
+When implementing the middleware, we handle logic like getting the `user_id` from the database.
+We don't want to reach back out, double our work.
+On p. 518, the author creates a tuple struct and implements `Display` and `Deref`.
+Then, you insert it in the request extensions.
+It magically then can be pulled into a function's arguments like `user_id: web::ReqData<UserId>,`.
+You use the `user_id.into_inner()` to get at the underlying struct, which is technically like a pointer.
+So, to get the actual value, we dereference it with the glob.
+
+We also need to register our middleware with our App.
+Here's where we figure out how it is applied.
+We, so far, only want to apply it to the admin endpoints.
+As such, let us introduce a **scope**!
+
 ---
 
 ## Ch. 11 - Fault-tolerant Workflows

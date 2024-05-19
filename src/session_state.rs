@@ -3,9 +3,10 @@
 use actix_session::{Session, SessionExt, SessionGetError, SessionInsertError};
 use actix_web::dev::Payload;
 use actix_web::{FromRequest, HttpRequest};
-use uuid::Uuid;
-pub struct TypedSession(Session);
 use std::future::{ready, Ready};
+use uuid::Uuid;
+
+pub struct TypedSession(Session);
 
 impl TypedSession {
     const USER_ID_KEY: &'static str = "user_id";

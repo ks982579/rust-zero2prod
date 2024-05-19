@@ -1,4 +1,6 @@
+use crate::authentication::reject_anonymous_users;
 use actix_web::{cookie::Key, dev::Server, web, App, HttpServer};
+use actix_web_lab::middleware::from_fn;
 // use sqlx::PgConnection;
 use crate::routes::log_out;
 use crate::routes::{change_password, change_password_form};
@@ -135,15 +137,20 @@ pub async fn run(
             .wrap(TracingLogger::default())
             .route("/", web::get().to(home))
             .route("/login", web::get().to(login_form))
-            .route("/admin/dashboard", web::get().to(admin_dashboard))
-            .route("/admin/logout", web::post().to(log_out))
-            .route("/admin/password", web::get().to(change_password_form))
-            .route("/admin/password", web::post().to(change_password))
             .route("/login", web::post().to(login))
             .route("/health-check", web::get().to(health_check))
             .route("/newsletters", web::post().to(publish_newletter))
             .route("/subscriptions", web::post().to(subscribe))
             .route("/subscriptions/confirm", web::get().to(confirm))
+            .service(
+                web::scope("/admin")
+                    // We can insert endpoint specific middleware here
+                    .wrap(from_fn(reject_anonymous_users))
+                    .route("/dashboard", web::get().to(admin_dashboard))
+                    .route("/logout", web::post().to(log_out))
+                    .route("/password", web::get().to(change_password_form))
+                    .route("/password", web::post().to(change_password)),
+            )
             // Register connection as part of application state
             // connection must be cloneable for every copy of App returned...
             .app_data(db_pool.clone())

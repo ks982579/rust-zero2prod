@@ -1,4 +1,5 @@
-//! src/authentication.rs
+//! src/authentication/password.rs
+//! Copied everything from old src/authentication.rs
 use crate::telemetry::spawn_blocking_with_tracing;
 use anyhow::Context;
 use argon2::{
