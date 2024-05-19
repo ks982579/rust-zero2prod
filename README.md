@@ -384,7 +384,7 @@ And one of the constraints on the data is a unique field.
 There are 2 ways to handle:
 
 1. Wrap each tests in an SQL transaction and rollback at end of test.
-2. spin up new database for each integration test.
+1. spin up new database for each integration test.
 
 The former would be much faster but for our integration tests,
 unsure how to _capture_ the connection in the SQL transaction context.
@@ -868,7 +868,7 @@ This means we do not need to keep source code nor intermediate compilation artif
 We will create a multi-stage build in Docker:
 
 1. Builder stage to generate a compiled binary.
-2. A Runtime stage to run said binary.
+1. A Runtime stage to run said binary.
 
 The `runtime` is our final image.
 The `builder` stage is thrown away at the end of the build.
@@ -970,9 +970,9 @@ Or just use PayPal from the start.
 Information about linking Github and DigitalOcean isn't exactly forthcoming.
 
 1. Log into DigitalOcean
-2. On left side pannel, under "MANAGE", click "App Platform".
-3. The first button should say "Create App" or something, which begins process for linking.
-4. Once linked you do not have to proceed on the website.
+1. On left side pannel, under "MANAGE", click "App Platform".
+1. The first button should say "Create App" or something, which begins process for linking.
+1. Once linked you do not have to proceed on the website.
 
 Now, create an API token on the website.
 
@@ -1271,19 +1271,19 @@ We just return a `200 OK` response, no redirection.
 What are the steps?:
 
 1. User sends POST request to our `/subscription` endpoint.
-2. We add details to database, "subscriptions" table, status set to `pending_confirmation`.
-3. We generate a unique `subscription_token` and store in database linked to user ID.
-4. We send confirmation email w/link... `.../subscriptions/confirm?token=<subscription_token>`
-5. User clicks link.
-6. We return status `200 OK`
+1. We add details to database, "subscriptions" table, status set to `pending_confirmation`.
+1. We generate a unique `subscription_token` and store in database linked to user ID.
+1. We send confirmation email w/link... `.../subscriptions/confirm?token=<subscription_token>`
+1. User clicks link.
+1. We return status `200 OK`
 
 We should also then activate their account.
 
 1. The cliked link send GET request with that token.
-2. We retrieve that token from query parameters.
-3. query the ID associated with that token
-4. Update the user's status from pending to "active"
-5. return that `200 OK`
+1. We retrieve that token from query parameters.
+1. query the ID associated with that token
+1. Update the user's status from pending to "active"
+1. return that `200 OK`
 
 Thoughts?
 What if they click the link twice?
@@ -1985,7 +1985,7 @@ Some of this is pretty general, and would be nice if it could be implemented aut
 Doesn't Rust have a feature that write code for us?
 I think it's called a macro!
 There's a crate called `thiserror` that provides a derive macro.
-See [thiserror | crates.io] for more details.
+See \[thiserror | crates.io\] for more details.
 The github linked has lovely README as well.
 
 ```bash
@@ -2184,8 +2184,8 @@ cargo test subscribe_fails_if_there_is_a_fatal_database_error | bunyan
 We see information three times,
 
 1. from `tracing::error!()` in code.
-2. from `actix_web` converting our `SubscribeError` into `actix_web::Error`
-3. from `tracing_actix_web::TracingLogger` telemetry middleware.
+1. from `actix_web` converting our `SubscribeError` into `actix_web::Error`
+1. from `tracing_actix_web::TracingLogger` telemetry middleware.
 
 Rule of thumb is errors should be logged when handled.
 Porpagating errors with `?` is not a case of handling, so shouldn't log.
@@ -2815,6 +2815,8 @@ We need to tell the `Client` what to do...
 
 And just like that, yes, we are removing the query parameters.
 That's ok, just spent a couple hours implementing all that...
+
+Yes, so in the `src/routes/login/post.rs` file to remove all the HMac stuff.
 
 ---
 
