@@ -47,6 +47,18 @@ pub struct ConfirmationLinks {
 }
 
 impl TestApp {
+    /// Fetch HTML for Admin page
+    pub async fn get_admin_dashboard_html(&self) -> String {
+        self.api_client
+            .get(&format!("{}/admin/dashboard", &self.address))
+            .send()
+            .await
+            .expect("Failed to execute reqwest.")
+            // decodes and returns response text (must await)
+            .text()
+            .await
+            .unwrap()
+    }
     /// Tests only look at HTML page, not exposing underlying reqwest::Response
     pub async fn get_login_html(&self) -> String {
         self.api_client

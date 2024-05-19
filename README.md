@@ -3048,6 +3048,7 @@ Then, wire up the route.
 Should feel familiar at this point.
 
 Time to redirect on successful login.
+Start with some integration tests.
 
 ---
 
