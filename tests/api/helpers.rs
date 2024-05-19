@@ -55,6 +55,10 @@ impl TestApp {
             .await
             .expect("Failed to execute request.")
     }
+    /// Fetch change password HTML
+    pub async fn get_change_password_html(&self) -> String {
+        self.get_change_password().await.text().await.unwrap()
+    }
     /// POST for changing password
     pub async fn post_change_password<Body>(&self, body: &Body) -> reqwest::Response
     where
