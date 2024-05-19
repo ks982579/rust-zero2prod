@@ -3066,6 +3066,59 @@ It is lazy('ish) and updates Redis and sets cookies!
 `Session::get<T>(id: &str)` requires turbo-fish so it knows what to deserialize into.
 We use `.map_err()` because deserialization may fail, and must be handled.
 
+Trying to get the test to pass, only realizing with a cryptic error message
+that [Key::from()](https://docs.rs/actix-web/latest/actix_web/cookie/struct.Key.html#method.from)
+will `panic!` if key is less than 64 bytes.
+
+Now, the login flow is vulnerable to [fixation attacks | OWASP](https://owasp.org/www-community/attacks/Session_fixation).
+It's like, set user's browser with a known session token before they log in.
+Then, somehow, when the authenticate, you can get in.
+
+I'm trying to understand...
+The attacker may visit our site and establish a connection.
+The browser and server start communications by:
+
+- agreeing on encryption methods
+- verify each other's identities
+- Establish a secret key for the encrypted communication
+
+When the attacker sends you a link, it might include their "handshake".
+So, if you log in, the website can think you are the attacker...
+I think, so if the attacker begins a normal Session ID for an anonymous user, they send it to the victim.
+They log into the URL, attaching their account to that Session ID.
+But the Bad Actor has that token saved in their browser, which can give them access...
+Wow, that's a lot.
+
+To fix this, we can _rotate_ the session token when the user logs in with the `.renew()` method.
+
+We then build a strongly-typed API on top of `Session` so things are easier to scale.
+We create a `src/session_state.rs` with this inside:
+
+```rust
+impl FromRequest for TypedSession {
+    // Return same error by `FromRequest` for `Session`
+    type Error = <Session as FromRequest>::Error;
+    // see the README.md
+    type Future = Ready<Result<TypedSession, Self::Error>>;
+
+    fn from_request(req: &HttpRequest, _payload: &mut Payload) -> Self::Future {
+        ready(Ok(TypedSession(req.get_session())))
+    }
+}
+```
+
+The `Future` type is because Rust doesn't support `async` syntax in traits.
+Well, [This Blog | blog.rust-lang.org](https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits.html#is-it-okay-to-use-async-fn-in-traits-what-are-the-limitations)
+introduces concept of `async` syntax in traits.
+But the implementation is also similar to [`actix_web::FromRequest` | docs.rs](https://docs.rs/actix-web/latest/actix_web/trait.FromRequest.html).
+The `Future` is a type that resolves to self.
+The author explains everything on p.492.
+We use `ready()` because we want to convert our non-future value into a future to work with the trait.
+We then plug that into functions were sessions were being used.
+
+Now, to handle users just finding the page without logging in.
+Should be redirected.
+
 ---
 
 ## Ch. 11 - Fault-tolerant Workflows
