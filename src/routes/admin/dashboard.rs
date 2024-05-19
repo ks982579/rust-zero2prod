@@ -28,16 +28,22 @@ pub async fn admin_dashboard(
     Ok(HttpResponse::Ok()
         .content_type(ContentType::html())
         .body(format!(
-            r#"<!DOCTYPE html>
-            <html lang="en">
-            <head>
-            <meta http-equiv="content-type" content="text/html; charset=utf-8">
-            <title>Admin dashboard</title>
-            </head>
-            <body>
-            <p>Welcome {username}!</p>
-            </body>
-            </html>"#
+            r#"
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <title>Admin dashboard</title>
+  </head>
+  <body>
+    <p>Welcome {username}!</p>
+    <p>Available actions:</p>
+    <ol>
+      <li><a href="/admin/password">Change password</a></li>
+    </ol>
+  </body>
+</html>
+"#
         )))
 }
 
