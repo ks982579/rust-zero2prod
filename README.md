@@ -3151,6 +3151,18 @@ I had to update the login form because I didn't include it, but it worked.
 #### Password Reset
 
 Hopefully moving in Turbo!
+Well, I am.
+We implement tests and logic for rejecting changing passwords if both new passwords are not identical,
+and if the current password was incorrect.
+We also want to implement check that, per OWASP, the password is at least 12 character long, but less than 129.
+The author suggests adding these as an _exercise_... No, time is limited so I'll leave that for now.
+
+And finally, logging out.
+We can add a button and a test there, but what is logging out actually?
+We need to delete the session, remove the state from the storage backend
+and unset that client-side cookie!
+Luckily, `actix-session` has a dedicated method, `Session::purge`.
+Expose that in the `TypeSession` wrapper and get going!
 
 ---
 
