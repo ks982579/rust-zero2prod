@@ -36,6 +36,7 @@ pub struct TestApp {
     pub email_server: MockServer,
     pub port: u16,
     pub test_user: TestUser,
+    pub api_client: reqwest::Client,
 }
 
 /// Confirmation links embedded in request to the email API.
@@ -46,15 +47,23 @@ pub struct ConfirmationLinks {
 }
 
 impl TestApp {
+    /// Tests only look at HTML page, not exposing underlying reqwest::Response
+    pub async fn get_login_html(&self) -> String {
+        self.api_client
+            .get(&format!("{}/login", &self.address))
+            .send()
+            .await
+            .expect("Failed to execute reqwest.")
+            // decodes and returns response text (must await)
+            .text()
+            .await
+            .unwrap()
+    }
     pub async fn post_login<Body>(&self, body: &Body) -> reqwest::Response
     where
         Body: serde::Serialize,
     {
-        Client::builder()
-            .redirect(reqwest::redirect::Policy::none())
-            .build()
-            .unwrap()
-            // Client::new()
+        self.api_client
             .post(&format!("{}/login", &self.address))
             // `form()` ensures the body is URL-encoded and `Content-type` header is set
             // accordingly
@@ -64,7 +73,7 @@ impl TestApp {
             .expect("Failed to execute request.")
     }
     pub async fn post_subscriptions(&self, body: String) -> Response {
-        Client::new()
+        self.api_client
             .post(&format!("{}/subscriptions", &self.address))
             .header("Content-Type", "application/x-www-form-urlencoded")
             .body(body)
@@ -99,7 +108,7 @@ impl TestApp {
 
     pub async fn post_newsletters(&self, body: serde_json::Value) -> reqwest::Response {
         // let (username, password) = self.test_user().await;
-        reqwest::Client::new()
+        self.api_client
             .post(&format!("{}/newsletters", &self.address))
             .basic_auth(&self.test_user.username, Some(&self.test_user.password))
             .json(&body)
@@ -233,6 +242,14 @@ pub async fn spawn_app() -> TestApp {
     // let address = format!("http://127.0.0.1:{}", application.port());
 
     let _ = tokio::spawn(application.run_until_stopped());
+
+    // On Client for All
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .cookie_store(true)
+        .build()
+        .unwrap();
+
     // Return the String of the whole address.
     // format!("http://127.0.0.1:{}", port)
     // Now, we return a TestApp
@@ -242,6 +259,7 @@ pub async fn spawn_app() -> TestApp {
         db_pool: get_connection_pool(&configuration.database),
         email_server,
         test_user: TestUser::generate(),
+        api_client: client,
     };
     // add_test_user(&test_app.db_pool).await;
     test_app.test_user.store(&test_app.db_pool).await;

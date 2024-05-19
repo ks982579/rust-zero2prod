@@ -2866,6 +2866,54 @@ let res = HttpResponse::Ok()
 ```
 
 So I mixed a bit, grabbing cookies from `reqwest` and setting them with Actix-Web.
+You can set directly like...
+
+```rust
+// {...}
+
+pub async fn login(
+    form: web::Form<FormData>,
+    pool: web::Data<PgPool>,
+) -> Result<HttpResponse, InternalError<LoginError>> {
+    let credentials = Credentials {
+        username: form.0.username,
+        password: form.0.password,
+    };
+
+    // {...}
+
+    match validate_credentials(credentials, &pool).await {
+        Ok(user_id) => {
+            // {...}
+        }
+        Err(e) => {
+            let e = match e {
+                AuthError::InvalidCredentials(_) => LoginError::AuthError(e.into()),
+                AuthError::UnexpectedError(_) => LoginError::UnexpectedError(e.into()),
+            };
+            let response = HttpResponse::SeeOther()
+                .insert_header((LOCATION, "/login"))
+                .insert_header(("Set-Cookie", format!("_flash={e}")))
+                .finish();
+            Err(InternalError::from_response(e, response))
+        }
+    }
+}
+```
+
+I think, like `LOCATION`, there's also a `actix_web::http::header::SET_COOKIE` constant.
+We will use the `actix_web::cookie::Cookie` API though.
+
+Since the cookie is set, we need to read it from the GET page...
+Naturally, start in the tests... `TestApp::get_login_html()` to be exact.
+There's a tricky case in testing where we would expect the browser to _propagate_ cookies set by POST.
+I think that means to carry them along to the GET request.
+The `reqwest` crate does not do this by default,
+but just needs `reqwest::ClientBuilder::cookie_store(true)` to be set.
+
+But each function seems to create a new client...
+We want to share a `Client` between functions to propagate cookies,
+Which requires a lot of refactoring in our helpers.
 
 ---
 

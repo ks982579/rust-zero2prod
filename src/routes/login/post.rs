@@ -6,11 +6,12 @@ use actix_web::http::header::LOCATION;
 // use actix_web::http::StatusCode;
 use actix_web::HttpResponse;
 // use actix_web::ResponseError;
-use crate::startup::HmacSecret;
+// use crate::startup::HmacSecret;
+use actix_web::cookie::Cookie;
 use actix_web::error::InternalError;
 use actix_web::web;
-use hmac::{Hmac, Mac};
-use secrecy::{ExposeSecret, Secret};
+// use hmac::{Hmac, Mac};
+use secrecy::Secret;
 use sqlx::PgPool;
 
 #[derive(serde::Deserialize)]
@@ -119,7 +120,8 @@ pub async fn login(
                     // format!("/login?{}&tag={:x}", query_string, hmac_tag),
                     "/login",
                 ))
-                .insert_header(("Set-Cookie", format!("_flash={e}")))
+                // .insert_header(("Set-Cookie", format!("_flash={e}")))
+                .cookie(Cookie::new("_flash", e.to_string()))
                 .finish();
             Err(InternalError::from_response(e, response))
         }
