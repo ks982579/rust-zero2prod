@@ -12,7 +12,9 @@ use tracing_actix_web::TracingLogger;
 use crate::configuration::{DatabaseSettings, Settings};
 use crate::domain::SubscriberEmail;
 use crate::email_client::EmailClient;
-use crate::routes::{confirm, health_check, home, login, login_form, publish_newletter, subscribe};
+use crate::routes::{
+    admin_dashboard, confirm, health_check, home, login, login_form, publish_newletter, subscribe,
+};
 
 // Need a type to hold serve and its port
 pub struct Application {
@@ -131,6 +133,7 @@ pub async fn run(
             .wrap(TracingLogger::default())
             .route("/", web::get().to(home))
             .route("/login", web::get().to(login_form))
+            .route("/admin/dashboard", web::get().to(admin_dashboard))
             .route("/login", web::post().to(login))
             .route("/health-check", web::get().to(health_check))
             .route("/newsletters", web::post().to(publish_newletter))

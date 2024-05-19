@@ -3031,6 +3031,23 @@ Other keys here are their own structs, but let's see what we need.
 Redis default port is 6379.
 We do some updates to the code to include Redis, but need to actually start a container.
 We begin with a startup script.
+Don't forget to make it an executable.
+
+The script pulls the latest version 7 of Redis.
+Unfortunately, DigitalOcean does not support creation of a development Redis cluster
+via the spec.yaml file.
+p. 483 discusses a quick configuration and then copying the connection string
+and injecting it as an environment variable, `APP_REDIS_URI`, from "Settings" in the control panel.
+
+I'm skipping the DO setup for now.
+
+Let's create the base-line of the admin dashboard.
+Starting with... `src/routes/admin/mod.rs`.
+We create our dummy endpoint, just returning OK.
+Then, wire up the route.
+Should feel familiar at this point.
+
+Time to redirect on successful login.
 
 ---
 
