@@ -47,7 +47,11 @@ pub async fn admin_dashboard(
         )))
 }
 
-async fn get_username(user_id: Uuid, pool: &PgPool) -> Result<String, anyhow::Error> {
+#[tracing::instrument(
+    name = "Get Username"
+    skip_all
+)]
+pub async fn get_username(user_id: Uuid, pool: &PgPool) -> Result<String, anyhow::Error> {
     let row = sqlx::query!(
         r#"SELECT username
         FROM users
