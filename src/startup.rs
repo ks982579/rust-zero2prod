@@ -1,5 +1,6 @@
 use actix_web::{cookie::Key, dev::Server, web, App, HttpServer};
 // use sqlx::PgConnection;
+use crate::routes::log_out;
 use crate::routes::{change_password, change_password_form};
 use actix_session::storage::RedisSessionStore;
 use actix_session::SessionMiddleware;
@@ -135,6 +136,7 @@ pub async fn run(
             .route("/", web::get().to(home))
             .route("/login", web::get().to(login_form))
             .route("/admin/dashboard", web::get().to(admin_dashboard))
+            .route("/admin/logout", web::post().to(log_out))
             .route("/admin/password", web::get().to(change_password_form))
             .route("/admin/password", web::post().to(change_password))
             .route("/login", web::post().to(login))
