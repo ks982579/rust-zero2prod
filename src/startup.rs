@@ -1,6 +1,8 @@
-use actix_web::{dev::Server, web, App, HttpServer};
+use actix_web::{cookie::Key, dev::Server, web, App, HttpServer};
 // use sqlx::PgConnection;
-use secrecy::Secret;
+use actix_web_flash_messages::storage::CookieMessageStore;
+use actix_web_flash_messages::FlashMessagesFramework;
+use secrecy::{ExposeSecret, Secret};
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use std::net::TcpListener;
 use tracing_actix_web::TracingLogger;
@@ -99,12 +101,21 @@ pub fn run(
     let db_pool: web::Data<PgPool> = web::Data::new(db_pool);
     let email_client: web::Data<EmailClient> = web::Data::new(email_client);
     let base_url: web::Data<ApplicationBaseUrl> = web::Data::new(ApplicationBaseUrl(base_url));
+
+    // This is storage backend
+    // It requres a key to sign cookies
+    let message_store =
+        CookieMessageStore::builder(Key::from(hmac_secret.expose_secret().as_bytes())).build();
+    // Requires storage backend as argument...
+    let message_framework = FlashMessagesFramework::builder(message_store).build();
+
     // HttpServer for binding to TCP socket, maximum number of connections
     // allowing transport layer security, and more.
     let server: Server = HttpServer::new(move || {
         App::new()
             // middleware added with the `.wrap()` method.
             // .wrap(Logger::default())
+            .wrap(message_framework.clone())
             .wrap(TracingLogger::default())
             .route("/", web::get().to(home))
             .route("/login", web::get().to(login_form))

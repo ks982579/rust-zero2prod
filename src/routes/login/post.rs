@@ -1,6 +1,7 @@
 //! src/routes/login/post.rs
 use crate::authentication::{validate_credentials, AuthError, Credentials};
 use crate::routes::error_chain_fmt;
+use actix_web_flash_messages::FlashMessage;
 // for redirecting...
 use actix_web::http::header::LOCATION;
 // use actix_web::http::StatusCode;
@@ -106,6 +107,7 @@ pub async fn login(
                 AuthError::InvalidCredentials(_) => LoginError::AuthError(e.into()),
                 AuthError::UnexpectedError(_) => LoginError::UnexpectedError(e.into()),
             };
+            FlashMessage::error(e.to_string()).send();
             // let query_string = format!("error={}", urlencoding::Encoded::new(e.to_string()));
             // let hmac_tag = {
             //     let mut mac =
@@ -121,7 +123,8 @@ pub async fn login(
                     "/login",
                 ))
                 // .insert_header(("Set-Cookie", format!("_flash={e}")))
-                .cookie(Cookie::new("_flash", e.to_string()))
+                // `FlashMessagesFramework` middleware handles the cookie
+                // .cookie(Cookie::new("_flash", e.to_string()))
                 .finish();
             Err(InternalError::from_response(e, response))
         }

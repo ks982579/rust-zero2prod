@@ -2918,6 +2918,62 @@ Which requires a lot of refactoring in our helpers.
 Looking at out `src/routes/login/get.rs`, we need to read cookies now.
 Start by... ripping out that HMAC crap.
 
+Getting cookies means accessing the Request itself...
+So add that to the input parameters.
+
+Now, we set a cookie, but it doesn't delete itself.
+This means when the user reloads the page, it will say an error, even if they didn't log in yet.
+p. 471 explains 2 kinds of cookies, **session** and **persistent** cookies.
+The "Set-Cookie" header defaults to a session cookie.
+We can specify attributes, either "Max-Age" or "Expires" to make persistent cookies.
+We can set "Max-Age" to 0 to instruct the browser to immediately expire the cookie.
+
+To ensure this happens, we add to the test case.
+Reload the webpage and ensure the message is gone.
+Not setting the original cookie from POST though.
+We are setting the redirected cookie from the GET request,
+that overrides the one that was set previously
+Not setting the original cookie from POST though.
+We are setting the redirected cookie from the GET request,
+that overrides the one that was set previously.
+
+The author dives into _cookie security_ there...
+Don't transfer over insecure connections, you risk man in the middle attacks.
+Also, JavaScript can interact with cookies, which then get sent to your backend!
+Good to follow rule of thumb _least-privilege_ policy.
+Unless necessary, mark cookies as "Http-Only".
+
+People may also try and manipulate cookies.
+We can secure cookies with that Message Authentication Code (MAC).
+Give a cookie value an HMAC tag, it is a **signed cookie**.
+
+I don't think I understood it properly there before,
+but it seems a bit like a check-sum.
+We have a secret word, phrase, sequence, whatever.
+It is prepended to the key and hashed, we choose SHA-256.
+And then do that again to really mix it up.
+
+If the backend kind of sends itself a cookie,
+it can rehash the message and verify it matches the tag.
+
+We will use the `actix-web-flash-messages` crate,
+apparently modeled after Django.
+
+```bash
+cargo add actix-web-flash-messages --features=cookies
+```
+
+It need be added as middleware first.
+The author is also the Author of this crate.
+Setting up isn't too bad, and allows you to send `FlashMessages`.
+
+Give it a go in `src/routes/login/post.rs`.
+You basically tell the middleware to send a cookie.
+It takes care of creating, signing, and setting properties.
+
+It comes with an `IncomingFlashMessages` receiver...
+Update `src/routes/login/get.rs`.
+
 ---
 
 ## Ch. 11 - Fault-tolerant Workflows
